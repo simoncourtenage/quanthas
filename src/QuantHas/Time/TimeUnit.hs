@@ -11,16 +11,9 @@
     This program is distributed in the hope that it will be useful, but WITHOUT
     ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
     FOR A PARTICULAR PURPOSE.  See the license for more details.
-    
 -}
 
-module BusinessDayConvention(module BusinessDayConvention) where
+module QuantHas.Time.TimeUnit ( TimeUnit (..) ) where
 
-data BusinessDayConvention
-    = Following
-      | ModifiedFollowing
-      | Preceding
-      | ModifiedPreceding
-      | Unadjusted
-      deriving (Eq, Show)
-      
+data TimeUnit = Days | Weeks | Months | Years deriving (Eq,Show)
+

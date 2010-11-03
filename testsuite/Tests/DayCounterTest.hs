@@ -1,7 +1,7 @@
-module Tests.DayCounterTest(module Tests.DayCounterTest) where
+module Tests.DayCounterTest (daycountertests) where
 
-import Date
-import DayCounter
+import QuantHas.Time.Date
+import QuantHas.Time.DayCounter
 import Test.HUnit
 
 daycountertests = TestList [TestLabel "Daycounter test1" daycounter_test1,

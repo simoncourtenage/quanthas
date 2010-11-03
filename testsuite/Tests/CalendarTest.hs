@@ -1,8 +1,8 @@
-module Tests.CalendarTest(module Tests.CalendarTest) where
+module Tests.CalendarTest (calendartests) where
 
-import Date
-import Calendar
-import CalendarUK
+import QuantHas.Time.Date
+import QuantHas.Time.Calendar
+import QuantHas.Time.Calendars.UnitedKingdom
 import Test.HUnit
 
 calendartests = TestList [TestLabel "Calendar test1" calendar_test1,

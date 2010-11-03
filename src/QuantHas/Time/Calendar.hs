@@ -14,11 +14,12 @@
     
 -}
 
-module Calendar(module Calendar) where
+module QuantHas.Time.Calendar(module QuantHas.Time.Calendar) where
 
-import Array
-import Date
-import BusinessDayConvention
+import Data.Array
+import QuantHas.Time.Date
+import QuantHas.Time.BusinessDayConvention
+
 
 data Calendar = Calendar
                     {

@@ -7,3 +7,6 @@ import Tests.CalendarTest
 runtests1 = runTestTT daycountertests
 runtests2 = runTestTT calendartests
 
+main = do
+    runtests1
+    runtests2

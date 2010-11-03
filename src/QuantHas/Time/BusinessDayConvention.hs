@@ -14,7 +14,13 @@
     
 -}
 
-module TimeUnit where
+module QuantHas.Time.BusinessDayConvention (module QuantHas.Time.BusinessDayConvention) where
 
-data TimeUnit = Days | Weeks | Months | Years deriving (Eq,Show)
-
+data BusinessDayConvention
+    = Following
+      | ModifiedFollowing
+      | Preceding
+      | ModifiedPreceding
+      | Unadjusted
+      deriving (Eq, Show)
+      

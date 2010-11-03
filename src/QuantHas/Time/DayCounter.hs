@@ -15,9 +15,9 @@
 -}
 
 
-module DayCounter(module Date,module DayCounter) where
+module QuantHas.Time.DayCounter(module QuantHas.Time.Date,module QuantHas.Time.DayCounter) where
 
-import Date
+import QuantHas.Time.Date
 
 -- QuantLib defines a Time type which is typedef'd from double (a.k.a. Real)
 type Time = Double
@@ -108,10 +108,4 @@ thirty360DayCounter conv = DayCounter daycount yrfraction name
 
 thirty360DayCounterDefault = thirty360DayCounter USA
           
--- test data
 
-testdate1 = makeDate 02 07 2010
-testdate2 = makeDate 10 07 2010
-testdate3 = makeDate 19 07 2010
-testdate4 = makeDate 31 07 2010
-       

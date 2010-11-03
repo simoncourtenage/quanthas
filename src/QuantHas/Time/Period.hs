@@ -14,10 +14,10 @@
     
 -}
 
-module Period(module Frequency,module Period) where
+module QuantHas.Time.Period (module QuantHas.Time.Frequency,module QuantHas.Time.Period) where
 
-import Frequency
-import TimeUnit
+import QuantHas.Time.Frequency
+import QuantHas.Time.TimeUnit
 
 -- unlike quantlib, we store the frequency in the period object to save recalculating it later
 data Period = Period { periodLength :: Int, periodUnits :: TimeUnit, periodFrequency :: Frequency }

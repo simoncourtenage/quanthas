@@ -14,14 +14,17 @@
     
 -}
 
-module Date( module TimeUnit, module Date) where
+module QuantHas.Time.Date ( module QuantHas.Time.TimeUnit, module QuantHas.Time.Date) where
 
-import TimeUnit
+import QuantHas.Time.TimeUnit
+import QuantHas.Time.Period
 
 type Day = Int
 type Month = Int
 type Year = Int
 type SerialNumber = Int
+
+data DayName =  Sunday | Monday | Tuesday | Wednesday | Thursday | Friday | Saturday deriving (Eq, Show, Enum)
 
 -- store all the components of a date precomputed
 data Date = Date { getday::Day, getmonth::Month, getyear::Year, getserialnumber::SerialNumber }
@@ -82,10 +85,10 @@ adjustmnthyr mnth yr | mnth < 1  = adjustmnthyr (mnth+12) (yr-1)
                      | otherwise = (mnth,yr)
 
 addToDate:: Date -> Period -> Date
-addToDate date (Period num tunit) = advance date num tunit
+addToDate date (Period num tunit _) = advance date num tunit
 
 subtractFromDate :: Date -> Period -> Date
-subtractFromDate date (Period num tunit) = advance date (-num) tunit
+subtractFromDate date (Period num tunit _) = advance date (-num) tunit
 
 -- assumes that the first date arg is later than the second date arg
 -- (as the Quantlib operator- does)
@@ -108,6 +111,11 @@ weekday (Date _ _ _ serial)
     = let dayno = serial `mod` 7
       in if dayno == 0 then 7 else dayno
       
+-- returns the name of the day of week
+getweekdayname :: Date -> DayName
+getweekdayname = toEnum . pred . weekday
+
+
 -- month functions
               
 monthLength:: Month -> Bool -> Int
@@ -171,3 +179,4 @@ yearOffsetLst = 0 : yearOffsetLst' 0 1901
     where yearOffsetLst' prev year = let newdays = upddays prev year
                                      in newdays : yearOffsetLst' newdays (year + 1)
           upddays prev year        = if isLeap (year - 1) then prev + 366 else prev + 365
+

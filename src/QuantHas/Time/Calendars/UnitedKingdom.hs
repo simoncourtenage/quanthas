@@ -14,10 +14,10 @@
     
 -}
 
-module CalendarUK (module CalendarUK, module Calendar) where
+module QuantHas.Time.Calendars.UnitedKingdom (module QuantHas.Time.Calendars.UnitedKingdom, module QuantHas.Time.Calendar) where
 
-import Calendar
-import Date
+import QuantHas.Time.Calendar
+import QuantHas.Time.Date
 
 -- | MarketUK maps onto the enum values defined for the UK Calendar class in Quantlib
 data MarketUK = UKExchange

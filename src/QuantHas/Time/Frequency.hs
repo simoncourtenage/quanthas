@@ -14,9 +14,9 @@
     
 -}
 
-module Frequency(module Frequency) where
+module QuantHas.Time.Frequency (module QuantHas.Time.Frequency) where
 
-import TimeUnit
+import QuantHas.Time.TimeUnit
 
 data Frequency
     = NoFrequency | Once | Annual | Semiannual | EveryFourthMonth | Quarterly
