@@ -15,6 +15,5 @@
 
 module QuantHas.Instruments.Instrument ( Instrument(..) ) where
 
-data Instrument
-     = Equity
+data Instrument = None
      deriving (Eq,Show)
