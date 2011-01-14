@@ -1,4 +1,4 @@
-{-
+{- 
     Copyright (C) 2010, Simon Courtenage (courtenage@gmail.com)
     
     This file is part of QuantHas, an open-source Haskell implementation
@@ -13,7 +13,18 @@
     FOR A PARTICULAR PURPOSE.  See the license for more details.
 -}
 
-module QuantHas.Time.TimeUnit ( TimeUnit (..) ) where
+-- | The 'TimeUnit' data type used for representing the common units of time.
+--
 
-data TimeUnit = Days | Weeks | Months | Years deriving (Eq,Show)
+module QuantHas.Time.TimeUnit (
+    -- | The 'TimeUnit' data type with Days, Weeks, Months and Years as different units of time.
+    TimeUnit (..)
+) where
+
+data TimeUnit
+    = Days
+    | Weeks
+    | Months
+    | Years
+    deriving (Eq,Show)
 
