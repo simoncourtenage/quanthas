@@ -15,5 +15,8 @@
 
 module QuantHas.Instruments.Instrument ( Instrument(..) ) where
 
-data Instrument = None
-     deriving (Eq,Show)
+-- Instrument defines an interface that all Instrument instances need to implement
+class Instrument a where
+	npv :: Instrument a -> Date -> Date -> Rate -> Double
+	
+     
