@@ -62,7 +62,7 @@ makeDate day month year = Date day month year (makeSerialNumber day month year)
 
 makeDateFromSerial serial = Date day month year serial
     where year  = calcyear serial
-          monthlst = if isLeap year then monthOffsetLeapLst else monthOffsetLst
+          monthlst = if isLeapYear year then monthOffsetLeapLst else monthOffsetLst
           dayofyear = dayOfTheYear serial
           month = calculateMonth dayofyear monthlst
           day = dayofyear - (monthlst !! (month - 1))
@@ -76,7 +76,7 @@ advance (Date d m y serial) num Months
     = Date newday newmonth newyear (makeSerialNumber newday newmonth newyear)
     where
     (newmonth,newyear) = adjustmnthyr (m + num) y
-    mnthlen            = monthLength newmonth (isLeap newyear)
+    mnthlen            = monthLength newmonth (isLeapYear newyear)
     newday             = if d > mnthlen then mnthlen else d
 
 adjustmnthyr:: Month -> Year -> (Month,Year)
@@ -95,7 +95,7 @@ subtractFromDate date (Period num tunit _) = advance date (-num) tunit
 subtractDates :: Date -> Date -> Int
 subtractDates (Date _ _ _ serial1) (Date _ _ _ serial2) = serial1 - serial2
                      
-makeSerialNumber d m y = d + (monthOffset m (isLeap y)) + (yearOffset y)
+makeSerialNumber d m y = d + (monthOffset m (isLeapYear y)) + (yearOffset y)
 
 
 
@@ -127,7 +127,7 @@ calculateMonth daynum monthlst = length (takeWhile (< daynum) monthlst)
 -- is the given date the last day of the month?
 isEndOfMonth :: Date -> Bool
 isEndOfMonth (Date day month year serial)
-    = let monthlens = if (isLeap year) then monthDaysLeap else monthDays
+    = let monthlens = if (isLeapYear year) then monthDaysLeap else monthDays
       in day == monthlens !! (month - 1)
       
 -- get the date corresponding to the end of the month for a given date
@@ -135,7 +135,7 @@ endOfMonth :: Date -> Date
 endOfMonth (Date day month year _)
     = Date lastday month year (makeSerialNumber lastday month year)
     where lastday = monthlens !! (month - 1)
-          monthlens = if isLeap year then monthDaysLeap else monthDays
+          monthlens = if isLeapYear year then monthDaysLeap else monthDays
 
 monthDays :: [Int]
 monthDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
@@ -157,8 +157,8 @@ monthOffsetLeapLst = [0,  31,  60,  91, 121, 152, 182, 213, 244, 274, 305, 335, 
 
 -- 1900 is not a leap year, but quantlib's isLeap function treats it as one in line with
 -- an apparent bug in excel
-isLeap :: Year -> Bool
-isLeap year = if (year /= 1900) then year `mod` 4 == 0 && (year `mod` 100 /= 0 || year `mod` 400 == 0)
+isLeapYear :: Year -> Bool
+isLeapYear year = if (year /= 1900) then year `mod` 4 == 0 && (year `mod` 100 /= 0 || year `mod` 400 == 0)
               else True
               
 -- calculate the year from the serial number
@@ -178,5 +178,5 @@ yearOffsetLst :: [Int]
 yearOffsetLst = 0 : yearOffsetLst' 0 1901
     where yearOffsetLst' prev year = let newdays = upddays prev year
                                      in newdays : yearOffsetLst' newdays (year + 1)
-          upddays prev year        = if isLeap (year - 1) then prev + 366 else prev + 365
+          upddays prev year        = if isLeapYear (year - 1) then prev + 366 else prev + 365
 
