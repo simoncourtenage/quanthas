@@ -32,6 +32,7 @@ data Date = Date { getday::Day, getmonth::Month, getyear::Year, getserialnumber:
 
 -- define a custom version of show for Date objects
 instance Show Date where
+    show (Date 0 0 0 0)               = "Null Date"
     show (Date day month year serial) = (displayDay day) ++ " " ++ (displayMonth month) ++ " " ++ show year
 
 -- logical comparison operators - delegate to comparison of the serial numbers
@@ -67,6 +68,11 @@ makeDateFromSerial serial = Date day month year serial
           month = calculateMonth dayofyear monthlst
           day = dayofyear - (monthlst !! (month - 1))
 
+-- QL Date class includes an empty constructor and some code (e.g, Schedule class) uses this
+-- constructor.  In this first pass of creatin QuantHas from the QL code, we include this
+-- constructor to allow transcription to continue but we should seek to eliminate it in the future
+mkNullDate:: Date
+mkNullDate = Date 0 0 0 0
 
 -- advance a date by a number of specified timeunits
 advance:: Date -> Int -> TimeUnit -> Date
