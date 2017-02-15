@@ -14,15 +14,9 @@
     
 -}
 
-module QuantHas.Time.BusinessDayConvention (module QuantHas.Time.BusinessDayConvention) where
+module QuantHas.Require(module QuantHas.Require) where
 
-data BusinessDayConvention
-    = Following
-      | ModifiedFollowing
-      | Preceding
-      | ModifiedPreceding
-      | Unadjusted
-      | HalfMonthModifiedFollowing
-      | Nearest
-      deriving (Eq, Show)
-      
+require :: Bool -> String -> a -> a
+require True _ result     = result
+require False error_msg _ = error error_msg
+

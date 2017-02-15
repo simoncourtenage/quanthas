@@ -14,15 +14,13 @@
     
 -}
 
-module QuantHas.Time.BusinessDayConvention (module QuantHas.Time.BusinessDayConvention) where
+module QuantHas.Time.Calendars.NullCalendar (module QuantHas.Time.Calendars.NullCalendar, module QuantHas.Time.Calendar) where
 
-data BusinessDayConvention
-    = Following
-      | ModifiedFollowing
-      | Preceding
-      | ModifiedPreceding
-      | Unadjusted
-      | HalfMonthModifiedFollowing
-      | Nearest
-      deriving (Eq, Show)
-      
+import QuantHas.Time.Calendar
+import QuantHas.Time.Date
+
+nullCalendar :: Calendar
+nullCalendar
+    = makeCalendar "Null" (\_ -> False) (\_ -> False) (\_ -> False) nullCalendarImpl
+
+nullCalendarImpl = CalendarImpl (\_ -> \_ -> False) (\_ -> False) (\_ -> False)

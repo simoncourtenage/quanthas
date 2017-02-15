@@ -182,3 +182,65 @@ orthodoxEasterMondays :: Array Int Int
 orthodoxEasterMondays
     = array (1,299) (zip [1..] orthodoxEasterMondaysLst)
     
+advanceDateByUnit :: Date -> Integer -> TimeUnit -> BusinessDayConvention -> Bool -> Date
+advanceDateByUnit d n unit c endOfMonth
+    | isNullDate d = error "Calendar::advanceDateByUnit - null date"
+    | n == 0       = adjustCalendarDate d c
+    | unit == Days = if (n > 0) then
+                        advanceDays d n (+1) (-1)
+                     else
+                        advanceDays d n (-1) (+1)
+                     where
+                     advanceDays d' 0 _ _ = d'
+                     advanceDays d' n fd fn = advanceDays (advanceIfHoliday (fd d) fd) (fn n)
+                     advanceIfHoliday d'' fd'' = if isHoliday(d'') then advanceIfHoliday (fd'' d'') else d''
+    | unit == Weeks = adjustCalendarDate (addToDate d (mkPeriod n Weeks)) c
+    | otherwise     = if (endOfMonth and isEndOfMonth d1) then calcEndOfMonth(d1) else adjustCalendarDate d1 c
+
+adjustCalendarDate :: Date -> BusinessDayConvention -> Date
+adjustCalendarDate d Unadjusted = d
+adjustCalendarDate d Nearest    =  if (isHoliday(d1)) then d2 else d1
+                                       where
+                                       (d1,d2) = untilHoliday (d,d)
+                                       untilHoliday (d1',d2')
+                                        | not(isHoliday(d1')) and not(isHoliday(d2'))
+                                            = untilHoliday (d1'+1,d2'-1)
+                                        | otherwise = (d1',d2')
+adjustCalendarDate d Following
+    = untilHoliday d addToDate
+    
+adjustCalendarDate d ModifiedFollowing
+    = if getMonth d1 != getMonth d then
+        adjustCalendarDate d Preceding
+      else
+        d1
+      where
+      d1 = untilHoliday d addToDate
+
+adjustCalendarDate d HalfMonthModifiedFollowing
+   = if getMonth d1 != getMonth d or (getDay d <= 15 and getDay d1 > 15) then
+        adjustCalendarDate d Preceding
+      else
+        d1
+      where
+      d1 = untilHoliday d addToDate
+
+adjustCalendarDate d Preceding
+    = untilHoliday d subtractFromDate
+
+adjustCalendarDate d ModifiedPreceding
+    = if getMonth d1 != getMonth d then
+        adjustCalendarDate d Following
+      else
+        d1
+      where
+      d1 = untilHoliday d addToDate
+
+adjustCalendarDate _ _ = error "adjustCalendarDate: unknown BusinessDayConvention" 
+
+untilHoliday :: Date -> (Date->Date) -> Date
+untilHoliday d f | isHoliday (d) = f d
+                 | otherwise     = d
+
+calcEndOfMonth :: Date -> Date
+calcEndOfMonth d = adjustCalendarDate (endOfMonth d) Preceding
