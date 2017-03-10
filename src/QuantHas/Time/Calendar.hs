@@ -79,8 +79,7 @@ getEasterMonday :: Array Int Int -> Year -> Int
 getEasterMonday easterMondays year = easterMondays ! (year - 1900)
 
 -- | make a calendar for a specific country
-makeCalendar :: String -> (Calendar -> Date -> Bool) -> (Date -> Bool)
-                    -> (Date -> Bool) -> CalendarImpl -> Calendar
+makeCalendar :: String -> (Calendar -> Date -> Bool) -> (Date -> Bool) -> (Date -> Bool) -> CalendarImpl -> Calendar
 makeCalendar name bus wkend hols calimpl = Calendar name bus wkend hols calimpl
 
 -- main functions over calendars
