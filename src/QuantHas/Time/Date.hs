@@ -40,9 +40,9 @@ instance Ord Date where
     (<) (Date d1 m1 y1 s1) (Date d2 m2 y2 s2) = s1 < s2
     (<=) (Date d1 m1 y1 s1) (Date d2 m2 y2 s2) = s1 <= s2
     (>) (Date d1 m1 y1 s1) (Date d2 m2 y2 s2) = s1 > s2
-    (>=) (Date d1 m1 y1 s1) (Date d2 m2 y2 s2) = s1 >= s2
-    
-    
+    (>=) (Date d1 m1 y1 s1) (Date d2 m2 y2 s2) = s1 >= s2 
+
+
 displayDay :: Day -> String
 displayDay day = show day ++ daysuffix day
 
@@ -73,6 +73,10 @@ makeDateFromSerial serial = Date day month year serial
 -- constructor to allow transcription to continue but we should seek to eliminate it in the future
 mkNullDate:: Date
 mkNullDate = Date 0 0 0 0
+
+isNullDate :: Date -> Bool
+isNullDate (Date 0 0 0 0) = True
+isNullDate d              = False
 
 -- advance a date by a number of specified timeunits
 advance:: Date -> Int -> TimeUnit -> Date

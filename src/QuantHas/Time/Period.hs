@@ -26,6 +26,7 @@ data Period = Period { periodLength :: Int, periodUnits :: TimeUnit, periodFrequ
 instance Ord Period where
     (<) p1 p2 = lessThan p1 p2
     (>=) p1 p2 = not (lessThan p1 p2)
+    (<=) p1 p2 = lessThanOrEqual p1 p2
 
 -- use this as a wrapper round the different values that can be used to create a period value
 data PeriodArgs = PeriodTimeArgs Int TimeUnit | PeriodFreqArg Frequency
@@ -78,6 +79,13 @@ daysMinMax (Period l Months _) = (28*l,31*l)
 daysMinMax (Period l Years _)  = (365*l,366*l)
 
 -- operators over Periods
+
+lessThanOrEqual :: Period -> Period -> Bool
+lessThanOrEqual p1 p2 = lessThan p1 p2 || equalPeriod p1 p2
+
+equalPeriod :: Period -> Period -> Bool
+equalPeriod p1 p2
+   = periodFrequency p1 == periodFrequency p2 && periodUnits p1 == periodUnits p2 && periodFrequency p1 == periodFrequency p2
 
 lessThan :: Period -> Period -> Bool
 lessThan (Period 0 u1 f1) (Period l2 u2 f2) = l2 > 0

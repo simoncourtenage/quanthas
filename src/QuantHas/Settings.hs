@@ -19,12 +19,12 @@ import Data.Maybe
 import QuantHas.Time.Date
 
 data Settings = Settings {
-							evaluationDate :: Date,
-							includeReferenceDateEvents :: Bool,
-							includeTodaysCashFlows :: Maybe Bool,
-							enforcesTodaysHistoricFixings :: Bool
-						 }
-						 deriving (Show)
+                            evaluationDate :: Date,
+                            includeReferenceDateEvents :: Bool,
+                            includeTodaysCashFlows :: Maybe Bool,
+                            enforcesTodaysHistoricFixings :: Bool
+                         }
+                        deriving (Show)
 
 defaultSettings:: Settings
 defaultSettings = Settings  mkNullDate False Nothing False

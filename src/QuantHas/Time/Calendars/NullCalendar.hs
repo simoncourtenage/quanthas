@@ -21,6 +21,6 @@ import QuantHas.Time.Date
 
 nullCalendar :: Calendar
 nullCalendar
-    = makeCalendar "Null" (\_ -> False) (\_ -> False) (\_ -> False) nullCalendarImpl
+    = makeCalendar "Null" (\_ -> \_ -> False) (\_ -> False) (\_ -> False) nullCalendarImpl
 
-nullCalendarImpl = CalendarImpl (\_ -> \_ -> False) (\_ -> False) (\_ -> False)
+nullCalendarImpl = CalendarImpl (\_ -> \_ -> False) (\_ -> 0) (\_ -> False)

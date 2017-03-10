@@ -22,8 +22,12 @@ import QuantHas.Time.Date
 import QuantHas.Time.Calendars.NullCalendar
 import QuantHas.Time.BusinessDayConvention
 import QuantHas.Time.Period
-import Quanthas.Settings
+import QuantHas.Settings
 import QuantHas.Require
+
+{-
+    Schedule are used to represent sequences of coupon dates.
+-}
 
 data Schedule = Schedule
 				{
@@ -60,16 +64,19 @@ mkScheduleFromEffectiveDate settings effDate termDate cal convention tdConventio
    = let
    	 	effectiveDate = checkEffectiveDate (calcEffectiveDate settings termDate firstDate nextToLastDate rule) termDate
    	 	rule'         = if (lenPeriod tenor == 0) then
-   	 						Zero
-   	 					else if (lenPeriod tenor < 0) then
-   	 						require (not (lenPeriod tenor < 0)) rule "Non postive tenor not allowed"
+   	 						       Zero
+   	 					        else
+                        if (lenPeriod tenor < 0) then
+   	 						           require (not (lenPeriod tenor < 0)) rule "Non postive tenor not allowed"
+                        else
+                           error "mkScheduleFromEffectiveDate: bad tenor"
    	 	firstDate_	  = if (firstDate == effectiveDate) then mkNullDate else firstDate
    	 	ntlDate_	  = if (nextToLastDate == termDate) then mkNullDate else nextToLastDate
    	 	firstDate'	  = chkDateAgainstRule firstDate_ rule' "First date"
    	 	ntlDate'	  = chkDateAgainstRule nextToLastDate_ rule' "Next to last date"
    	 	endOfMonth' 		  = if allowsEndOfMonth tenor then endOfMonth else Just False
    	 	schedule 	  = Schedule [] cal convention tdConvention tenor rule' endOfMonth' firstDate' ntlDate' []
-   	 	schedule'	  = calcSchedule schedule nullCalendar effectiveDate termDate
+   	 	schedule'	  = calcSchedule schedule nullCalendar effectiveDate termDate firstDate
    	 in
    		schedule'
 
@@ -120,20 +127,64 @@ chkDateAgainstRule fd ed td r datename
 	on the DateGeneration rule.  The C++ code uses a switch statement, which here is represented using pattern matching.
 -}
 
-calcSchedule :: Schedule -> Calendar -> Date -> Date -> Schedule
-calcSchedule (Schedule d cal conv tdconv tenor Zero eom fdate ntldate isreg) ncal edate tdate
+calcSchedule :: Schedule -> Calendar -> Date -> Date -> Date -> Schedule
+calcSchedule (Schedule d cal conv tdconv tenor Zero eom fdate ntldate isreg) ncal edate tdate fstdate
 	= Schedule newdates cal conv tdconv tenor' r@Zero eom fdate ntldate (isreg ++ [true])
 	  where
 	  newdates = d ++ [edate,tdate]
 	  tenor' = makePeriodFromTime 0 Years
-calcSchedule (Schedule d cal conv tdconv tenor r@Backward eom fdate ntldate isreg) ncal edate tdate
-	= Schedule newdates cal conv tdconv tenor r eom fdate ntldate isreg 
+calcSchedule sch@(Schedule ds cal conv tdconv tenor r@Backward eom fdate ntldate isreg) ncal edate tdate fstdate
+	= calcScheduleBackward (Schedule ds' cal conv tdconv tenor r eom fdate ntldate isreg) ncal edate tdate (seed,exitd)
 	  where
-	  d' = advanceDateByPeriod tdate (makePeriodFromTime 0 tenor bdc eom)
-	  
+    {- If we have a nextToLast date, then use it and calculate the regularity of the interval
+       calcIsReg checks that the nextToLast date is a whole Period behind the termination date.
+       If it is, then the interval between them is regular, else it is not.
+    -}
+	  (ds',isreg') = let calcIsReg = isIntervalRegular conv eom ntldate tdate (-1*tenor)
+                   in
+                      if (not (isNullDate ntldate)) then
+                        ([ntldate,tdate],[calcIsReg])
+                      else
+                        ([tdate],[])
+	  seed = tdate
+	  exitd = if not isNullDate fstdate then
+              fstdate
+            else
+              edate
 
-calcSchedule schedule cal
-   = error "stub"
+{-
+    Calculate the coupon dates backwards from the termination date.
+-}
 
+calcScheduleBackward :: Schedule -> Calendar -> Date -> Date -> (Date,Date) -> Schedule
+calcScheduleBackward (Schedule ds cal conv tdconv tenor r eom fdate ntldate isreg) ncal edate tdate (seedd,exitd)
+	= Schedule coupondates cal conv tdconv tenor r eom fdate ntldate regs
+    where
+      (coupondates,regs) | isNullDate ntldate = schDatesBackward exitdate fdate tdate ([tdate],[])
+                         | otherwise          = let
+                                                  isreg' = if (advanceDateByPeriod tdate (makePeriodFromTime 0 tenor bdc eom)) /= ntldate
+                                                  then
+                                                    False
+                                                  else
+                                                    True
+                                                in
+                                                schDatesBackward exitdate fdate ntldate ([tdate,ntldate],[isreg'])
+      exitdate  | isNullDate fdate   = edate -- if first date is null, then exit date is effective date
+                | otherwise          = fdate
 
+schDatesBackward :: Date -> Date -> Date -> ([Date],[Bool]) -> [Date]
+schDatesBackward exitdate firstdate lastdate (dates,intervals)
+    = if nextdate < exitdate
+      then  (dates',intervals')
+      else (dates,intervals)
+      where
+      dates' | (not $ isNullDate firstdate) && 
 
+{-
+    Used to determine whether an interval between two dates is regular.  If the distance from date2 by units is
+    equal to date1, then interval between date1 and date2 is regular.
+-}
+
+isIntervalRegular :: BusinessDateConvention -> Bool -> Date -> Date -> Int -> Bool
+isIntervalRegular conv eom date1 date2 units | date1 == advanceDateByPeriod date2 units conv eom = True
+                                             | otherwise                                         = False
