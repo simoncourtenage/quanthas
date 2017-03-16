@@ -152,11 +152,14 @@ calcSchedule sch@(Schedule ds cal conv tdconv tenor r@Backward eom fdate ntldate
             else
               edate
 
-{-
-    Calculate the coupon dates backwards from the termination date.
--}
 
-calcScheduleBackward :: Schedule -> Calendar -> Date -> Date -> (Date,Date) -> Schedule
+-- | Calculate the coupon dates backwards from the termination date.
+calcScheduleBackward :: Schedule
+                        -> Calendar
+                        -> Date         -- ^ effective date for start of schedule of payments
+                        -> Date         -- ^ termination date for schedule of payments
+                        -> (Date,Date)  -- ^ seed date and exit date
+                        -> Schedule
 calcScheduleBackward (Schedule ds cal conv tdconv tenor r eom fdate ntldate isreg) ncal edate tdate (seedd,exitd)
 	= Schedule coupondates cal conv tdconv tenor r eom fdate ntldate regs
     where
@@ -172,7 +175,13 @@ calcScheduleBackward (Schedule ds cal conv tdconv tenor r eom fdate ntldate isre
       exitdate  | isNullDate fdate   = edate -- if first date is null, then exit date is effective date
                 | otherwise          = fdate
 
-schDatesBackward :: Date -> Date -> Date -> ([Date],[Bool]) -> [Date]
+-- | calculates dates and interval regularity for schedule backwards
+schDatesBackward :: Date
+                    -> Date             -- ^ exit date from schedule
+                    -> Date             -- ^ first date of schedule
+                    -> Int              -- ^ number of periods seen so far
+                    -> ([Date],[Bool])  -- ^ accumulative list of coupon dates and interval flags
+                    -> ([Date],[Bool])  -- ^ list of coupon dates and interval flags for schedule
 schDatesBackward exitdate firstdate lastdate (dates,intervals)
     = if nextdate < exitdate
       then  (dates',intervals')
@@ -180,11 +189,15 @@ schDatesBackward exitdate firstdate lastdate (dates,intervals)
       where
       dates' | (not $ isNullDate firstdate) && 
 
-{-
-    Used to determine whether an interval between two dates is regular.  If the distance from date2 by units is
-    equal to date1, then interval between date1 and date2 is regular.
--}
 
-isIntervalRegular :: BusinessDateConvention -> Bool -> Date -> Date -> Int -> Bool
+
+-- | Used to determine whether an interval between two dates is regular.  If the distance from date2 by units is
+-- |equal to date1, then interval between date1 and date2 is regular.
+isIntervalRegular :: BusinessDateConvention
+                     -> Bool    -- ^ end of month flag
+                     -> Date    -- ^ date marking start of interval
+                     -> Date    -- ^ date marking end of interval
+                     -> Int     -- ^ length of interval
+                     -> Bool    -- ^ True if interval between dates is regular
 isIntervalRegular conv eom date1 date2 units | date1 == advanceDateByPeriod date2 units conv eom = True
                                              | otherwise                                         = False

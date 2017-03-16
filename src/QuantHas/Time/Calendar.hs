@@ -1,5 +1,5 @@
 {-
-    Copyright (C) 2010, Simon Courtenage (courtenage@gmail.com)
+    Copyright (C) 2017, Simon Courtenage (courtenage@gmail.com)
     
     This file is part of QuantHas, an open-source Haskell implementation
     of the QuantLib library for quantitative finance.
@@ -14,6 +14,12 @@
     
 -}
 
+{-|
+  Module: QuantHas.Time.Calendar
+  Description: Calendar data declaration and functions over calendars
+  Copyright: (c) Simon Courtenage 2017
+  Maintainer: courtenage@gmail.com
+-}
 module QuantHas.Time.Calendar(module QuantHas.Time.Calendar) where
 
 import Data.Array
@@ -25,10 +31,10 @@ import QuantHas.Time.Period
 data Calendar = Calendar
                     {
                         calendarName :: String,
-                        calendarIsBusinessDay :: Calendar -> Date -> Bool,
-                        calendarIsWeekend :: Date -> Bool,
-                        calendarIsHoliday :: Date -> Bool,
-                        calendarImpl :: CalendarImpl
+                        calendarIsBusinessDay :: Calendar -> Date -> Bool, -- ^ function to determine if date is a business day
+                        calendarIsWeekend :: Date -> Bool,                 -- ^ function to determine if date is weekend in calendar
+                        calendarIsHoliday :: Date -> Bool,                 -- ^ is date a holiday?
+                        calendarImpl :: CalendarImpl                       -- ^ calendar representation
                     }
 
 data CalendarImpl = CalendarImpl
