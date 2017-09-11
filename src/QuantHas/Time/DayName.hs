@@ -1,5 +1,5 @@
 {-
-    Copyright (C) 2010, Simon Courtenage (courtenage@gmail.com)
+    Copyright (C) 2017, Simon Courtenage (courtenage@gmail.com)
     
     This file is part of QuantHas, an open-source Haskell implementation
     of the QuantLib library for quantitative finance.
@@ -14,9 +14,13 @@
     
 -}
 
-module QuantHas.Require(module QuantHas.Require) where
+{-|
+  Module: QuantHas.Time.DayName
+  Description: data type for names of days of the week
+  Copyright: (c) Simon Courtenage 2017
+  Maintainer: courtenage@gmail.com
+-}
 
-require :: Bool -> String -> a -> a
-require True _ result     = result
-require False error_msg _ = error error_msg
+module QuantHas.Time.DayName where
 
+data DayName =  Sunday | Monday | Tuesday | Wednesday | Thursday | Friday | Saturday deriving (Eq, Show, Enum)

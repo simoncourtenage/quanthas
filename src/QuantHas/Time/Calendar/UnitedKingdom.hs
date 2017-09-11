@@ -4,7 +4,7 @@
     This file is part of QuantHas, an open-source Haskell implementation
     of the QuantLib library for quantitative finance.
     
-    Quanthas is free software: you can redistribute it and/or modify it
+    QuantHas is free software: you can redistribute it and/or modify it
     under the terms of the QuantHas license.  You should have received a
     copy of the license along with this program.
 
@@ -14,25 +14,25 @@
     
 -}
 
-module QuantHas.Time.Calendars.UnitedKingdom (module QuantHas.Time.Calendars.UnitedKingdom, module QuantHas.Time.Calendar) where
+module QuantHas.Time.Calendar.UnitedKingdom
+    (module QuantHas.Time.Calendar.Calendar
+   , calendarUKLSE)
+where
 
-import QuantHas.Time.Calendar
+import QuantHas.Time.Calendar.Calendar
+import QuantHas.Time.Calendar.WesternCalendarImpl
 import QuantHas.Time.Date
 
--- | MarketUK maps onto the enum values defined for the UK Calendar class in Quantlib
-data MarketUK = UKExchange
-    deriving (Eq,Show)
-
-calendarUK :: MarketUK -> Calendar
-calendarUK UKExchange
-    = makeCalendar "London Stock Exchange" isBusinessDayUK isWeekendUK isHolidayUK westernCalendarImpl
+calendarUKLSE :: Calendar
+calendarUKLSE
+    = mkCalendar "London Stock Exchange" isBusinessDayUK isWeekendUK isHolidayUK westernCalendarImpl
 
 -- | The Quantlib UK calendar has three different implementations of isBusinessDay
 --  for the three different markets (Settlement, Exchange and Metals) - however, all
 --  three functions are exactly the same, so here we only provide one.
-isBusinessDayUK :: Calendar -> Date -> Bool
-isBusinessDayUK cal date@(Date day month year serial)
-    = not (isWeekend date || isNewYearsDay day month
+isBusinessDayUK :: Date -> Bool
+isBusinessDayUK date@(Date day month year serial)
+    = not (isWeekendUK date || isNewYearsDay day month
             || dayOfYear == easterMonday || dayOfYear == easterMonday - 3 -- i.e., is it good friday
             || (month == 5 && weekday == Monday
                     && (day <= 7 || (day >= 25 && year /= 2002))) -- first or last bank holiday in May
@@ -44,8 +44,7 @@ isBusinessDayUK cal date@(Date day month year serial)
             || (year == 1999 && month == 12 && day == 31)) -- end of millenium
     where weekday = getweekdayname date
           dayOfYear               = dayOfTheYear serial
-          easterMonday            = ((calImplGetEasterMonday . calendarImpl) cal) year
-          isWeekend               = calendarIsWeekend cal
+          easterMonday            = ciGetEasterMonday westernCalendarImpl year
           isNewYearsDay day month = month == 1 && (day == 1 || (day <= 3 && weekday == Monday))
           
 isHolidayUK :: Date -> Bool

@@ -1,17 +1,21 @@
-module Tests.DayCounterTest (daycountertests) where
+module Tests.DayCounterTest (dayCounterTestGroup) where
 
 import QuantHas.Time.Date
 import QuantHas.Time.DayCounter
-import Test.HUnit
+import Test.Tasty (testGroup)
+import Test.Tasty.HUnit
+-- import Test.HUnit
 
-daycountertests = TestList [TestLabel "Daycounter test1" daycounter_test1,
-                            TestLabel "Daycounter test2" daycounter_test2]
+dayCounterTestGroup
+    = testGroup "Day CounterTests"
+        [daycounter_test1,daycounter_test2]
 
-daycounter_test1 = TestCase (assertEqual "actual365fixed day count" expected actual)
+daycounter_test1 = testCase "dayCount actual365fixed" $ assertEqual "" expected actual
     where actual   = dayCount actual365fixedDayCounter testdate1 testdate4
           expected = 31
           
-daycounter_test2 = TestCase (assertBool "actual365fixed year fraction" (expected == actual))
+daycounter_test2 = testCase "actual365fixed year fraction" $
+                        assertBool "" (expected == actual)
     where actual = yearFraction actual365fixedDayCounter testdate1 testdate4 testdate2 testdate3
           expected = (31.0 / 365.0)
 
@@ -22,4 +26,3 @@ testdate2 = makeDate 10 07 2010
 testdate3 = makeDate 19 07 2010
 testdate4 = makeDate 02 08 2010
 
--- test 1

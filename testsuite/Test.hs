@@ -1,12 +1,24 @@
-module Test() where
+module Main where
 
-import Test.HUnit
-import Tests.DayCounterTest
-import Tests.CalendarTest
+import Test.Tasty (defaultMain, testGroup)
+import Test.Tasty.HUnit (assertEqual,testCase)
+-- import Test.HUnit
+import Tests.DayCounterTest (dayCounterTestGroup)
+import Tests.CalendarTest (calendarTestGroup)
 
-runtests1 = runTestTT daycountertests
-runtests2 = runTestTT calendartests
+-- runtests1 = runTestTT daycountertests
+-- runtests2 = runTestTT calendartests
 
+main = defaultMain unitTests
+
+unitTests =
+    testGroup " Unit tests"
+    [calendarTestGroup,dayCounterTestGroup]
+
+{--
 main = do
+    putStrLn "Running daycounter tests"
     runtests1
+    putStrLn "Running calendar tests"
     runtests2
+--}

@@ -14,7 +14,22 @@
     
 -}
 
-module QuantHas.Time.Period (module QuantHas.Time.Frequency,module QuantHas.Time.Period) where
+module QuantHas.Time.Period
+    (module QuantHas.Time.Frequency
+   , Period(..)
+   , PeriodArgs(..)
+   , mkPeriod
+   , mkPeriodFromTime
+   , normalize
+   , units
+   , lenPeriod
+   , daysMinMax
+   , lessThanOrEqual
+   , lessThan
+   , equalPeriod
+   , allowsEndOfMonth
+   )
+    where
 
 import QuantHas.Time.Frequency
 import QuantHas.Time.TimeUnit
@@ -27,6 +42,9 @@ instance Ord Period where
     (<) p1 p2 = lessThan p1 p2
     (>=) p1 p2 = not (lessThan p1 p2)
     (<=) p1 p2 = lessThanOrEqual p1 p2
+
+periodOp :: (Int -> Int) -> Period -> Period
+periodOp f (Period len units freq) = Period (f len) units freq
 
 -- use this as a wrapper round the different values that can be used to create a period value
 data PeriodArgs = PeriodTimeArgs Int TimeUnit | PeriodFreqArg Frequency

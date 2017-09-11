@@ -14,17 +14,20 @@
     
 -}
 
-module QuantHas.Time.Date ( module QuantHas.Time.TimeUnit, module QuantHas.Time.Date) where
+module QuantHas.Time.Date
+  (module QuantHas.Time.TimeUnit
+ , module QuantHas.Time.Date
+ , module QuantHas.Time.DayName)
+  where
 
 import QuantHas.Time.TimeUnit
 import QuantHas.Time.Period
+import QuantHas.Time.DayName
 
 type Day = Int
 type Month = Int
 type Year = Int
 type SerialNumber = Int
-
-data DayName =  Sunday | Monday | Tuesday | Wednesday | Thursday | Friday | Saturday deriving (Eq, Show, Enum)
 
 -- store all the components of a date precomputed
 data Date = Date { getday::Day, getmonth::Month, getyear::Year, getserialnumber::SerialNumber }
@@ -41,7 +44,6 @@ instance Ord Date where
     (<=) (Date d1 m1 y1 s1) (Date d2 m2 y2 s2) = s1 <= s2
     (>) (Date d1 m1 y1 s1) (Date d2 m2 y2 s2) = s1 > s2
     (>=) (Date d1 m1 y1 s1) (Date d2 m2 y2 s2) = s1 >= s2 
-
 
 displayDay :: Day -> String
 displayDay day = show day ++ daysuffix day

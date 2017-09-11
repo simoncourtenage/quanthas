@@ -14,7 +14,7 @@
     
 -}
 
-module QuantHas.Time.Calendars.NullCalendar (module QuantHas.Time.Calendars.NullCalendar, module QuantHas.Time.Calendar) where
+module QuantHas.Time.Calendar.NullCalendar (module QuantHas.Time.Calendars.NullCalendar, module QuantHas.Time.Calendar) where
 
 import QuantHas.Time.Calendar
 import QuantHas.Time.Date
