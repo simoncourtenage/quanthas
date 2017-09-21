@@ -21,6 +21,6 @@
   Maintainer: courtenage@gmail.com
 -}
 
-module QuantHas.Time.DayName where
+module QuantHas.Time.DayName (DayName(..)) where
 
 data DayName =  Sunday | Monday | Tuesday | Wednesday | Thursday | Friday | Saturday deriving (Eq, Show, Enum)
