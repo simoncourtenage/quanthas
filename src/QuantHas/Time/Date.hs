@@ -23,27 +23,32 @@ module QuantHas.Time.Date
 import QuantHas.Time.TimeUnit
 import QuantHas.Time.Period
 import QuantHas.Time.DayName
+import Control.Applicative
 
 type Day = Int
 type Month = Int
 type Year = Int
 type SerialNumber = Int
 
+{--
+  How to deal with null dates?
+--}
+
 -- store all the components of a date precomputed
-data Date = Date { getday::Day, getmonth::Month, getyear::Year, getserialnumber::SerialNumber }
+data Date = Date { getmonth::Month, getday::Day, getyear::Year, getserial::SerialNumber } | NullDate
             deriving (Eq)
 
 -- define a custom version of show for Date objects
 instance Show Date where
-    show (Date 0 0 0 0)               = "Null Date"
-    show (Date day month year serial) = (displayDay day) ++ " " ++ (displayMonth month) ++ " " ++ show year
+    show NullDate                     = "Null Date"
+    show (Date m d y serial) = (displayDay d) ++ " " ++ (displayMonth m) ++ " " ++ show y
 
 -- logical comparison operators - delegate to comparison of the serial numbers
 instance Ord Date where
-    (<) (Date d1 m1 y1 s1) (Date d2 m2 y2 s2) = s1 < s2
-    (<=) (Date d1 m1 y1 s1) (Date d2 m2 y2 s2) = s1 <= s2
-    (>) (Date d1 m1 y1 s1) (Date d2 m2 y2 s2) = s1 > s2
-    (>=) (Date d1 m1 y1 s1) (Date d2 m2 y2 s2) = s1 >= s2 
+    (<) d1 d2 = getserial d1 < getserial d2
+    (<=) d1 d2 = getserial d1 <= getserial d2
+    (>) d1 d2 = getserial d1 > getserial d2
+    (>=) d1 d2 = getserial d1 >= getserial d2 
 
 displayDay :: Day -> String
 displayDay day = show day ++ daysuffix day
@@ -60,36 +65,59 @@ displayMonth month = monthname !! (month - 1)
 
 -- constructor functions                       
 
-makeDate:: Day -> Month -> Year -> Date
-makeDate day month year = Date day month year (makeSerialNumber day month year)
+-- | Create date given month, day, year.
+--   Using the american order (month, day, year) allows us to validate
+--   month before using it to validate number of days
+mkDate:: Month -> Day -> Year -> Maybe Date
+mkDate m d y = Date <$> (isValidMonth m )
+                        <*> (isValidDay m d)
+                        <*> (isValidYear y)
+                        <*> (Just $ makeSerialNumber d m y)
 
-makeDateFromSerial serial = Date day month year serial
-    where year  = calcyear serial
-          monthlst = if isLeapYear year then monthOffsetLeapLst else monthOffsetLst
-          dayofyear = dayOfTheYear serial
-          month = calculateMonth dayofyear monthlst
-          day = dayofyear - (monthlst !! (month - 1))
+isValidDay :: Month -> Day -> Maybe Day
+isValidDay m d | m > 0 && m < 13 && d > 0 && d <= ds = Just d
+               | otherwise       = Nothing
+  where ds = monthDays !! (m - 1)
+
+isValidMonth :: Month -> Maybe Month
+isValidMonth m | m > 0 && m < 13 = Just m
+               | otherwise       = Nothing
+
+-- Don't accept years before 1901
+isValidYear :: Year -> Maybe Year
+isValidYear y | y >= 1901 = Just y
+              | otherwise = Nothing
+
+-- We assume that serial number counting begins from 1901
+mkDateFromSerial :: SerialNumber -> Date
+mkDateFromSerial 0 = NullDate
+mkDateFromSerial s = Date m d y s
+    where y  = calcyear s
+          ml = if isLeapYear y then monthOffsetLeapLst else monthOffsetLst
+          doy = dayOfTheYear s
+          m = calculateMonth doy ml
+          d = doy - (ml !! (m - 1))
 
 -- QL Date class includes an empty constructor and some code (e.g, Schedule class) uses this
 -- constructor.  In this first pass of creatin QuantHas from the QL code, we include this
 -- constructor to allow transcription to continue but we should seek to eliminate it in the future
 mkNullDate:: Date
-mkNullDate = Date 0 0 0 0
+mkNullDate = NullDate
 
 isNullDate :: Date -> Bool
-isNullDate (Date 0 0 0 0) = True
-isNullDate d              = False
+isNullDate NullDate = True
+isNullDate d        = False
 
 -- advance a date by a number of specified timeunits
 advance:: Date -> Int -> TimeUnit -> Date
-advance (Date _ _ _ serial) num Days   = makeDateFromSerial (serial + num)
-advance (Date _ _ _ serial) num Weeks  = makeDateFromSerial (serial + num*7)
-advance (Date d m y serial) num Months
-    = Date newday newmonth newyear (makeSerialNumber newday newmonth newyear)
+advance d num Days   = mkDateFromSerial (getserial d + num)
+advance d num Weeks  = mkDateFromSerial (getserial d + num*7)
+advance d num Months
+    = Date newmonth newday newyear (makeSerialNumber newday newmonth newyear)
     where
-    (newmonth,newyear) = adjustmnthyr (m + num) y
+    (newmonth,newyear) = adjustmnthyr (getmonth d + num) (getyear d) 
     mnthlen            = monthLength newmonth (isLeapYear newyear)
-    newday             = if d > mnthlen then mnthlen else d
+    newday             = if getday d > mnthlen then mnthlen else getday d
 
 adjustmnthyr:: Month -> Year -> (Month,Year)
 adjustmnthyr mnth yr | mnth < 1  = adjustmnthyr (mnth+12) (yr-1)
@@ -105,7 +133,7 @@ subtractFromDate date (Period num tunit _) = advance date (-num) tunit
 -- assumes that the first date arg is later than the second date arg
 -- (as the Quantlib operator- does)
 subtractDates :: Date -> Date -> Int
-subtractDates (Date _ _ _ serial1) (Date _ _ _ serial2) = serial1 - serial2
+subtractDates d1 d2 = getserial d1 - getserial d2
                      
 makeSerialNumber d m y = d + (monthOffset m (isLeapYear y)) + (yearOffset y)
 
@@ -118,14 +146,15 @@ dayOfTheYear serial = serial - yearOffset(calcyear serial)
 
 -- returns a value in the range 1 (Sunday) - 7 (Saturday) corresponding to the position of the day
 -- in the week
-weekday :: Date -> Int
-weekday (Date _ _ _ serial)
-    = let dayno = serial `mod` 7
-      in if dayno == 0 then 7 else dayno
+weekday :: Date -> Either String Int
+weekday NullDate = Left "Cannot calculate weekday from null date"
+weekday d
+    = let dayno = getserial d `mod` 7
+      in if dayno == 0 then Right 7 else Right dayno
       
 -- returns the name of the day of week
-getweekdayname :: Date -> DayName
-getweekdayname = toEnum . pred . weekday
+getweekdayname :: Date -> Either String DayName
+getweekdayname d = weekday d >>= \x -> Right $ (toEnum . pred) x
 
 
 -- month functions
@@ -138,16 +167,16 @@ calculateMonth daynum monthlst = length (takeWhile (< daynum) monthlst)
 
 -- is the given date the last day of the month?
 isEndOfMonth :: Date -> Bool
-isEndOfMonth (Date day month year serial)
-    = let monthlens = if (isLeapYear year) then monthDaysLeap else monthDays
-      in day == monthlens !! (month - 1)
+isEndOfMonth d
+    = let monthlens = if (isLeapYear $ getyear d) then monthDaysLeap else monthDays
+      in getday d == monthlens !! (getmonth d - 1)
       
 -- get the date corresponding to the end of the month for a given date
 endOfMonth :: Date -> Date
-endOfMonth (Date day month year _)
-    = Date lastday month year (makeSerialNumber lastday month year)
-    where lastday = monthlens !! (month - 1)
-          monthlens = if isLeapYear year then monthDaysLeap else monthDays
+endOfMonth d
+    = Date (getmonth d) lastday (getyear d) (makeSerialNumber lastday (getmonth d) (getyear d))
+    where lastday = monthlens !! (getmonth d - 1)
+          monthlens = if isLeapYear $ getyear d then monthDaysLeap else monthDays
 
 monthDays :: [Int]
 monthDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
@@ -175,9 +204,9 @@ isLeapYear year = if (year /= 1900) then year `mod` 4 == 0 && (year `mod` 100 /=
               
 -- calculate the year from the serial number
 calcyear :: SerialNumber -> Year
-calcyear serial = findyear 0 yearOffsetLst
+calcyear s = findyear 0 yearOffsetLst
     where findyear yrnum (y:ys)
-            | y >= serial  = yrnum + 1900 - 1
+            | y >= s  = yrnum + 1900 - 1
             | otherwise   = findyear (yrnum + 1) ys
 
 
