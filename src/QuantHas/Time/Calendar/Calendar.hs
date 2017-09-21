@@ -22,6 +22,7 @@
 -}
 module QuantHas.Time.Calendar.Calendar
   (Calendar
+   , DatePred
    , mkCalendar
    , isBusinessDay
    , isWeekend
@@ -38,34 +39,37 @@ import QuantHas.Time.Period
 
 newtype Calendar = Calendar Cal
 
+type DatePred = Date -> Either String Bool
+
 data Cal = Cal
            {
                calendarName :: String,
-               calendarIsBusinessDay :: Date -> Bool, -- ^ function to determine if date is a business day
-               calendarIsWeekend :: Date -> Bool,     -- ^ function to determine if date is weekend in calendar
-               calendarIsHoliday :: Date -> Bool,     -- ^ is date a holiday?
-               calendarImpl :: CalImpl                -- ^ calendar representation
+               calendarIsBusinessDay :: DatePred, -- ^ function to determine if date is a business day
+               calendarIsWeekend :: DatePred,     -- ^ function to determine if date is weekend in calendar
+               calendarIsHoliday :: DatePred,     -- ^ is date a holiday?
+               calendarImpl :: CalImpl                              -- ^ calendar representation
            }
 
 
 -- main functions over calendars
 
-isBusinessDay :: Calendar -> Date -> Bool
+isBusinessDay :: Calendar -> DatePred
 isBusinessDay (Calendar cal) = calendarIsBusinessDay cal
 
-isWeekend :: Calendar -> Date -> Bool
+isWeekend :: Calendar -> DatePred
 isWeekend (Calendar cal) = calendarIsWeekend cal
 
-isHoliday :: Calendar -> Date -> Bool
+isHoliday :: Calendar -> DatePred
 isHoliday (Calendar cal) = calendarIsHoliday cal
 
 getEasterMonday :: Calendar -> Int -> Int
 getEasterMonday (Calendar c) = (ciGetEasterMonday . calendarImpl) c
 
 -- | make a calendar for a specific country
-mkCalendar :: String -> (Date -> Bool) -> (Date -> Bool) -> (Date -> Bool) -> CalImpl -> Calendar
+mkCalendar :: String -> DatePred -> DatePred -> DatePred -> CalImpl -> Calendar
 mkCalendar name bus wkend hols calimpl = Calendar $ Cal name bus wkend hols calimpl
 
+{-- 
 advanceDateByUnit :: Calendar -> Date -> Int -> TimeUnit -> BusinessDayConvention -> Bool -> Date
 advanceDateByUnit cal d n unit c endOfMonth
     | isNullDate d  = error "Calendar::advanceDateByUnit - null date"
@@ -135,3 +139,5 @@ untilHoliday cal d f | isHoliday cal d = f d
 
 calcEndOfMonth :: Calendar -> Date -> Date
 calcEndOfMonth cal d = adjustCalendarDate cal (endOfMonth d) Preceding
+
+--}
