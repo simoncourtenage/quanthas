@@ -30,25 +30,36 @@ calendarUKLSE
 -- | The Quantlib UK calendar has three different implementations of isBusinessDay
 --  for the three different markets (Settlement, Exchange and Metals) - however, all
 --  three functions are exactly the same, so here we only provide one.
-isBusinessDayUK :: Date -> Bool
+isBusinessDayUK :: DatePred
+isBusinessDayUK NullDate = Left "Cannot determine business day from null date"
 isBusinessDayUK date@(Date day month year serial)
-    = not (isWeekendUK date || isNewYearsDay day month
-            || dayOfYear == easterMonday || dayOfYear == easterMonday - 3 -- i.e., is it good friday
-            || (month == 5 && weekday == Monday
-                    && (day <= 7 || (day >= 25 && year /= 2002))) -- first or last bank holiday in May
-            || (month == 7 && weekday == Monday && day >= 25) -- august bank holiday
-            || (month == 12 && day == 25) -- Christmas
-            || (month == 12 && day == 27 && (weekday == Monday || weekday == Tuesday)) -- if Xmas is Sat/Sun
-            || (month == 12 && day == 28 && (weekday == Monday || weekday == Tuesday)) -- if Xmas is Sat/Sun
-            || (month == 6 && year == 2002 && (day == 3 || day == 4)) -- Golden Jubilee bank holidays
-            || (year == 1999 && month == 12 && day == 31)) -- end of millenium
-    where weekday = getweekdayname date
+    = (isWeekendUK date)
+        >>= (\b -> isNewYearsDay day month >>= \b' -> Right $ b || b')
+        >>= (\b -> Right $ b || dayOfYear == easterMonday)
+        -- good Friday?
+        >>= (\b -> Right $ b || dayOfYear == easterMonday - 3)
+        -- first or last bank holiday?
+        >>= (\b -> fmap (\d -> b || (month == 5 && d == Monday && (day <= 7 || (day >= 25 && year /= 2002)))) weekday)
+        -- august bank holiday?
+        >>= (\b -> fmap (\d -> b || (month == 7 && d == Monday && day >= 25)) weekday)
+        -- Christmas?
+        >>= (\b -> Right $ b || (month == 12 && day == 25))
+        -- if Xmas falls on Saturday or Sunday
+        >>= (\b -> fmap (\d -> b || (month == 12 && day == 27 && (d == Monday || d == Tuesday))) weekday) 
+        -- same as above
+        >>= (\b -> fmap (\d -> b || (month == 12 && day == 28 && (d == Monday || d == Tuesday))) weekday) 
+        -- Golden Jubilee bank holiday
+        >>= (\b -> Right $ b || ((month == 6 && year == 2002 && (day == 3 || day == 4)))) 
+        -- end of millenium
+        >>= (\b -> Right $ b || (year == 1999 && month == 12 && day == 31))
+    where weekday                 = getweekdayname date
           dayOfYear               = dayOfTheYear serial
           easterMonday            = ciGetEasterMonday westernCalendarImpl year
-          isNewYearsDay day month = month == 1 && (day == 1 || (day <= 3 && weekday == Monday))
-          
-isHolidayUK :: Date -> Bool
-isHolidayUK date = True
+          isNewYearsDay day month = fmap (\d -> month == 1 && (day == 1 || (day <= 3 && d == Monday))) weekday
 
-isWeekendUK :: Date -> Bool
-isWeekendUK = isWesternWeekend . getweekdayname
+-- TO DO          
+isHolidayUK :: DatePred
+isHolidayUK d = Right True
+
+isWeekendUK :: DatePred
+isWeekendUK = fmap isWesternWeekend . getweekdayname
