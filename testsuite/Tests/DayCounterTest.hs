@@ -21,8 +21,9 @@ daycounter_test2 = testCase "actual365fixed year fraction" $
 
 -- test data
 
-testdate1 = makeDate 02 07 2010
-testdate2 = makeDate 10 07 2010
-testdate3 = makeDate 19 07 2010
-testdate4 = makeDate 02 08 2010
+testdate1 = gettestdate $ mkDate 07 02 2010
+testdate2 = gettestdate $ mkDate 07 10 2010
+testdate3 = gettestdate $ mkDate 07 19 2010
+testdate4 = gettestdate $ mkDate 08 02 2010
 
+gettestdate (Just d) = getCalDate d

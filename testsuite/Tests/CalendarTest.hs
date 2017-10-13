@@ -17,11 +17,11 @@ calendarTestGroup = testGroup "Calendar Tests"
 
 calendar_test1 = testCase "UK Calendar isBusinessDay" $ assertEqual "is business day" expected actual
     where actual   = isBusinessDay calendarUKLSE testdate1
-          expected = True
+          expected = Right True
  
 calendar_test2 = testCase "UK Calendar isBusinessDay" $ assertEqual "is not business day" expected actual
     where actual   = isBusinessDay calendarUKLSE testdate2
-          expected = False
+          expected = Right False
 
 {--
 calendar_test1 = TestCase (assertEqual "UK Calendar isBusinessDay" expected actual)
@@ -42,7 +42,9 @@ calendar_test3 = TestCase (assertEqual "UK Calendar isBusinessDay" expected actu
           
 -- test data
 
-testdate1 = makeDate 02 07 2010
-testdate2 = makeDate 10 07 2010
-testdate3 = makeDate 25 04 2011 -- Easter Monday 2011
-testdate4 = makeDate 06 04 2011 -- Easter Friday 2012
+testdate1 = gettestdate $ mkDate 07 02 2010
+testdate2 = gettestdate $ mkDate 07 10 2010
+testdate3 = gettestdate $ mkDate 04 25 2011 -- Easter Monday 2011
+testdate4 = gettestdate $ mkDate 04 06 2011 -- Easter Friday 2012
+
+gettestdate (Just d) = d

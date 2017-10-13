@@ -30,21 +30,32 @@ type Month = Int
 type Year = Int
 type SerialNumber = Int
 
-{--
-  How to deal with null dates?
---}
+-- | Date type.  We separate dates into actual calendar dates and null dates.  This allows us to separate
+--   validation of dates when constructed from operations on real dates.
+data Date =
+    Date { getCalDate:: CalDate }
+  | NullDate
+  deriving (Eq)
 
--- store all the components of a date precomputed
-data Date = Date { getmonth::Month, getday::Day, getyear::Year, getserial::SerialNumber } | NullDate
-            deriving (Eq)
+data CalDate
+  = CalDate
+    { getmonth::Month,
+      getday::Day,
+      getyear::Year,
+      getserial::SerialNumber
+    }
+  deriving (Eq)
 
 -- define a custom version of show for Date objects
 instance Show Date where
-    show NullDate                     = "Null Date"
-    show (Date m d y serial) = (displayDay d) ++ " " ++ (displayMonth m) ++ " " ++ show y
+    show NullDate = "Null Date"
+    show (Date c) = show c
+
+instance Show CalDate where
+    show d = (displayDay $ getday d) ++ " " ++ (displayMonth $ getmonth d) ++ " " ++ (show $ getyear d)
 
 -- logical comparison operators - delegate to comparison of the serial numbers
-instance Ord Date where
+instance Ord CalDate where
     (<) d1 d2 = getserial d1 < getserial d2
     (<=) d1 d2 = getserial d1 <= getserial d2
     (>) d1 d2 = getserial d1 > getserial d2
@@ -65,19 +76,28 @@ displayMonth month = monthname !! (month - 1)
 
 -- constructor functions                       
 
--- | Create date given month, day, year.
+-- | Create date given month, day, year.  Given the validation functions, you can only make
+--   valid dates.  If a date exists, therefore, and is not null, it is a valid date.
 --   Using the american order (month, day, year) allows us to validate
 --   month before using it to validate number of days
-mkDate:: Month -> Day -> Year -> Maybe Date
-mkDate m d y = Date <$> (isValidMonth m )
-                        <*> (isValidDay m d)
+mkCalDate:: Month -> Day -> Year -> Maybe CalDate
+mkCalDate m d y = CalDate <$> (isValidMonth m )
+                        <*> (isValidDay d m y)
                         <*> (isValidYear y)
                         <*> (Just $ makeSerialNumber d m y)
 
-isValidDay :: Month -> Day -> Maybe Day
-isValidDay m d | m > 0 && m < 13 && d > 0 && d <= ds = Just d
-               | otherwise       = Nothing
-  where ds = monthDays !! (m - 1)
+mkDate :: Month -> Day -> Year -> Maybe Date
+mkDate m d y = case mkCalDate m d y of
+  Nothing -> Nothing
+  Just c  -> Just $ Date c
+
+isValidDay :: Day -> Month -> Year -> Maybe Day
+isValidDay d m y | m > 0 && m < 13 && d > 0 && d <= ds = Just d
+                 | otherwise       = Nothing
+  where ds = daymnths !! (m - 1)
+        daymnths | isLeapYear y = monthDaysLeap
+                 | otherwise    = monthDays
+
 
 isValidMonth :: Month -> Maybe Month
 isValidMonth m | m > 0 && m < 13 = Just m
@@ -88,10 +108,14 @@ isValidYear :: Year -> Maybe Year
 isValidYear y | y >= 1901 = Just y
               | otherwise = Nothing
 
+
 -- We assume that serial number counting begins from 1901
 mkDateFromSerial :: SerialNumber -> Date
 mkDateFromSerial 0 = NullDate
-mkDateFromSerial s = Date m d y s
+mkDateFromSerial s = Date $ mkCalDateFromSerial s
+
+mkCalDateFromSerial :: SerialNumber -> CalDate
+mkCalDateFromSerial s = CalDate m d y s
     where y  = calcyear s
           ml = if isLeapYear y then monthOffsetLeapLst else monthOffsetLst
           doy = dayOfTheYear s
@@ -108,12 +132,15 @@ isNullDate :: Date -> Bool
 isNullDate NullDate = True
 isNullDate d        = False
 
+-- Date manipulation functions.  Note that these only make sense over CalDate - that is,
+-- dates that cannot be null.
+
 -- advance a date by a number of specified timeunits
-advance:: Date -> Int -> TimeUnit -> Date
-advance d num Days   = mkDateFromSerial (getserial d + num)
-advance d num Weeks  = mkDateFromSerial (getserial d + num*7)
+advance:: CalDate -> Int -> TimeUnit -> CalDate
+advance d num Days   = mkCalDateFromSerial (getserial d + num)
+advance d num Weeks  = mkCalDateFromSerial (getserial d + num*7)
 advance d num Months
-    = Date newmonth newday newyear (makeSerialNumber newday newmonth newyear)
+    = CalDate newmonth newday newyear (makeSerialNumber newday newmonth newyear)
     where
     (newmonth,newyear) = adjustmnthyr (getmonth d + num) (getyear d) 
     mnthlen            = monthLength newmonth (isLeapYear newyear)
@@ -124,19 +151,19 @@ adjustmnthyr mnth yr | mnth < 1  = adjustmnthyr (mnth+12) (yr-1)
                      | mnth > 12 = adjustmnthyr (mnth-12) (yr+1)
                      | otherwise = (mnth,yr)
 
-addToDate:: Date -> Period -> Date
+addToDate:: CalDate -> Period -> CalDate
 addToDate date (Period num tunit _) = advance date num tunit
 
-subtractFromDate :: Date -> Period -> Date
+subtractFromDate :: CalDate -> Period -> CalDate
 subtractFromDate date (Period num tunit _) = advance date (-num) tunit
 
 -- assumes that the first date arg is later than the second date arg
 -- (as the Quantlib operator- does)
-subtractDates :: Date -> Date -> Int
+subtractDates :: CalDate -> CalDate -> Int
 subtractDates d1 d2 = getserial d1 - getserial d2
-                     
-makeSerialNumber d m y = d + (monthOffset m (isLeapYear y)) + (yearOffset y)
 
+makeSerialNumber :: Day -> Month -> Year -> SerialNumber                  
+makeSerialNumber d m y = d + (monthOffset m (isLeapYear y)) + (yearOffset y)
 
 
 -- day functions
@@ -146,16 +173,14 @@ dayOfTheYear serial = serial - yearOffset(calcyear serial)
 
 -- returns a value in the range 1 (Sunday) - 7 (Saturday) corresponding to the position of the day
 -- in the week
-weekday :: Date -> Either String Int
-weekday NullDate = Left "Cannot calculate weekday from null date"
+weekday :: CalDate -> Int
 weekday d
     = let dayno = getserial d `mod` 7
-      in if dayno == 0 then Right 7 else Right dayno
+      in if dayno == 0 then 7 else dayno
       
 -- returns the name of the day of week
-getweekdayname :: Date -> Either String DayName
-getweekdayname d = weekday d >>= \x -> Right $ (toEnum . pred) x
-
+getweekdayname :: CalDate -> DayName
+getweekdayname = toEnum . pred . weekday
 
 -- month functions
               
@@ -166,15 +191,15 @@ calculateMonth:: Int -> [Int] -> Month
 calculateMonth daynum monthlst = length (takeWhile (< daynum) monthlst)
 
 -- is the given date the last day of the month?
-isEndOfMonth :: Date -> Bool
+isEndOfMonth :: CalDate -> Bool
 isEndOfMonth d
     = let monthlens = if (isLeapYear $ getyear d) then monthDaysLeap else monthDays
       in getday d == monthlens !! (getmonth d - 1)
       
 -- get the date corresponding to the end of the month for a given date
-endOfMonth :: Date -> Date
+endOfMonth :: CalDate -> CalDate
 endOfMonth d
-    = Date (getmonth d) lastday (getyear d) (makeSerialNumber lastday (getmonth d) (getyear d))
+    = CalDate (getmonth d) lastday (getyear d) (makeSerialNumber lastday (getmonth d) (getyear d))
     where lastday = monthlens !! (getmonth d - 1)
           monthlens = if isLeapYear $ getyear d then monthDaysLeap else monthDays
 

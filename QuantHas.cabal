@@ -25,7 +25,7 @@ Library
                     QuantHas.Time.Calendar.UnitedKingdom
                     QuantHas.Time.Calendar.CalendarImpl
                     QuantHas.Time.Calendar.WesternCalendarImpl
-                    QuantHas.Time.Schedule
+                    -- QuantHas.Time.Schedule
                     QuantHas.Settings
                     -- QuantHas.Require
   default-language: Haskell2010                 

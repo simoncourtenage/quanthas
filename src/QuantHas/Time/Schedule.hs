@@ -19,7 +19,7 @@ module QuantHas.Time.Schedule(module QuantHas.Time.Schedule) where
 import Data.Array
 import Data.Maybe
 import QuantHas.Time.Date
-import QuantHas.Time.Calendars.NullCalendar
+import QuantHas.Time.Calendar.NullCalendar
 import QuantHas.Time.BusinessDayConvention
 import QuantHas.Time.DateGeneration
 import QuantHas.Time.Period
@@ -43,14 +43,22 @@ data Schedule = Schedule
 					isRegular :: [Bool]
 				}
 
-mkSchedule :: [Date] -> Calendar -> BusinessDayConvention -> Maybe BusinessDayConvention -> Maybe Period -> 
-					Maybe DateGenerationRule -> Maybe Bool -> [Bool] -> Either String Schedule
+mkSchedule
+  :: [Date]                          -- ^ coupon dates
+  -> Calendar                        -- ^ calendar dates taken from
+  -> BusinessDayConvention           -- ^
+  -> Maybe BusinessDayConvention     -- ^
+  -> Maybe Period                    -- ^ tenor
+  -> Maybe DateGenerationRule        -- ^
+  -> Maybe Bool                      -- ^ End of month
+  -> [Bool]                          -- ^
+  -> Either String Schedule
 mkSchedule _ _ _ _ _ Nothing _ _
   = Left "No date generation rule provided"
-mkSchedule dates cal convention tdConvention tenor (Just rule) endOfMonth isRegular
-	= Right $ Schedule dates cal convention tdConvention tenor rule endOfMonth_ mkNullDate mkNullDate isRegular
+mkSchedule ds c co tco t (Just r) eom reg
+	= Right $ Schedule ds c co tco t r eom' mkNullDate mkNullDate reg
 	  where
-	  endOfMonth_ = if not (isNothing tenor) && not (allowsEndOfMonth (fromJust tenor)) then Just False else endOfMonth
+	  eom' = if not (isNothing t) && not (allowsEndOfMonth (fromJust t)) then Just False else eom
 
 -- | This represents the 2nd (rule-based) constructor for Schedule.  This constructor in the QL code has more
 --   conditions than the first, so is more difficult to transcribe
@@ -67,12 +75,31 @@ mkScheduleFromEffectiveDate
       -> Date                         -- ^ first date in schedule
       -> Date                         -- ^ next to last date
       -> Either String Schedule
+
+{--      
 mkScheduleFromEffectiveDate _ _ (Date _ _ _ 0) _ _ _ _ _ _ _ _  = Left "Null termination date"
-mkScheduleFromEffectiveDate _ _ _ _ _ _ _ Nothing _ _ _.        = Left "No date generation rule provided"
-mkScheduleFromEffectiveDate _ (Date _ _ _ 0) termDate cal con tdcon ten (Just Backward) eom (Date _ _ _ 0) nextToLastDate
-	= Left "Not complete" -- needs effective date to be retrieved from settings monad?
+mkScheduleFromEffectiveDate _ _ _ _ _ _ _ Nothing _ _ _         = Left "No date generation rule provided"
+mkScheduleFromEffectiveDate _ (Date _ _ _ 0) td c con tdcon t (Just Backward) eom (Date _ _ _ 0) ntl
+	= Left "Not complete" -- needs effective date to be retrieved from settings?
+--}
+
+mkScheduleFromEffectiveDate s efd td c cnv tdcnv t r eom fd ntl
+  = chkNullDate td
+    >>= chkDateGenRule
+    >>= Left "Got here"
+
+isTermDateNull :: Date -> Either String Date
+isTermDateNull 
+
+testMkSch  = mkScheduleFromEffectiveDate undefined undefined mkNullDate undefined undefined undefined undefined undefined undefined undefined undefined
+
 -- the constructor in Quantlib that corresponds to the next function is complex - we split the different
 -- functionalities of the C++ constructor across several helper functions
+
+{--
+
+-- commented out this block - being reworked
+
 mkScheduleFromEffectiveDate
   settings effDate termDate cal convention tdConvention tenor (Just rule) endOfMonth firstDate nextToLastDate
    = let
@@ -80,22 +107,23 @@ mkScheduleFromEffectiveDate
    	 	rule'         = if (lenPeriod (fromJust tenor) == 0) then
    	 						       Zero
    	 					        else
+                        undefined
                       -- TO DO
    	 						       --require (not (lenPeriod (fromJust tenor) < 0)) "Non positive tenor not allowed" rule
-   	 	firstDate_	  = if (firstDate == effectiveDate) then mkNullDate else firstDate
-   	 	ntlDate_	    = if (nextToLastDate == termDate) then mkNullDate else nextToLastDate
+   	 	firstDate_	  = if firstDate == effectiveDate then mkNullDate else firstDate
+   	 	ntlDate_	    = if nextToLastDate == termDate then mkNullDate else nextToLastDate
    	 	endOfMonth'   = if isJust tenor && allowsEndOfMonth (fromJust tenor) then endOfMonth else Just False
    	 	schedule 	    = Schedule [] cal convention tdConvention tenor rule' endOfMonth' firstDate_ ntlDate_ []
      in
    	 	calcSchedule nullCalendar effectiveDate termDate firstDate (chkScheduleDates schedule effDate termDate)
 
-{-
+{--
 	What the QL version of schedule constructor does - in order
 	1. decides if effective date needs to be calculated, and if yes, calculates it
 	2. checks if rule needs to be set
 	3. sanity checks rule against date
 	4. calculates dates using rule etc.  - really complex!
--}
+--}
 
 calcEffectiveDate :: Settings               -- ^ QuantHas settings
                      -> Date                -- ^ termination date
@@ -128,7 +156,7 @@ chkEffectiveDate effDate termDate
 chkScheduleDates :: Schedule
                     -> Date       -- ^ effective date
                     -> Date       -- ^ termindation date
-                    -> Either Schedule
+                    -> Either String Schedule
 chkScheduleDates s@(Schedule _ _ _ _ _ Backward _ fdate ntldate _) edate tdate
   | fdate > edate && fdate < tdate = Right s
   | otherwise = Left $ show fdate + " out of range effective date - termination date"
@@ -234,3 +262,5 @@ isIntervalRegular :: BusinessDayConvention
                      -> Bool    -- ^ True if interval between dates is regular
 isIntervalRegular conv eom date1 date2 units | date1 == advanceDateByPeriod date2 units conv eom = True
                                              | otherwise                                         = False
+
+--}

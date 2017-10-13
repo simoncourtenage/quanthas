@@ -14,13 +14,14 @@
     
 -}
 
-module QuantHas.Time.Calendar.NullCalendar (module QuantHas.Time.Calendars.NullCalendar, module QuantHas.Time.Calendar) where
+module QuantHas.Time.Calendar.NullCalendar (nullCalendar, module QuantHas.Time.Calendar.Calendar) where
 
-import QuantHas.Time.Calendar
+import QuantHas.Time.Calendar.Calendar
+import QuantHas.Time.Calendar.CalendarImpl
 import QuantHas.Time.Date
 
 nullCalendar :: Calendar
 nullCalendar
-    = makeCalendar "Null" (\_ -> \_ -> False) (\_ -> False) (\_ -> False) nullCalendarImpl
+    = mkCalendar "Null" (\_ -> False) (\_ -> False) (\_ -> False) nullCalendarImpl
 
-nullCalendarImpl = CalendarImpl (\_ -> \_ -> False) (\_ -> 0) (\_ -> False)
+nullCalendarImpl = CalImpl (\_ -> \_ -> False) (\_ -> 0) (\_ -> False) undefined

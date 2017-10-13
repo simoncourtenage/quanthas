@@ -30,36 +30,80 @@ calendarUKLSE
 -- | The Quantlib UK calendar has three different implementations of isBusinessDay
 --  for the three different markets (Settlement, Exchange and Metals) - however, all
 --  three functions are exactly the same, so here we only provide one.
+--  We assume that null dates have already been dealt with.
+--  The original QL code has isHoliday defined as not isBusinessDay, but the code for isBusinessDay first works
+--  out if a date is holiday and then returns True if it isn't.  In other words, the definition of a holiday is in
+--  the function for business days, and not in the function for holidays.  What we do here is hopefully a little more
+--  straightforward.
 isBusinessDayUK :: DatePred
-isBusinessDayUK NullDate = Left "Cannot determine business day from null date"
-isBusinessDayUK date@(Date day month year serial)
-    = (isWeekendUK date)
-        >>= (\b -> isNewYearsDay day month >>= \b' -> Right $ b || b')
-        >>= (\b -> Right $ b || dayOfYear == easterMonday)
-        -- good Friday?
-        >>= (\b -> Right $ b || dayOfYear == easterMonday - 3)
-        -- first or last bank holiday?
-        >>= (\b -> fmap (\d -> b || (month == 5 && d == Monday && (day <= 7 || (day >= 25 && year /= 2002)))) weekday)
-        -- august bank holiday?
-        >>= (\b -> fmap (\d -> b || (month == 7 && d == Monday && day >= 25)) weekday)
-        -- Christmas?
-        >>= (\b -> Right $ b || (month == 12 && day == 25))
-        -- if Xmas falls on Saturday or Sunday
-        >>= (\b -> fmap (\d -> b || (month == 12 && day == 27 && (d == Monday || d == Tuesday))) weekday) 
-        -- same as above
-        >>= (\b -> fmap (\d -> b || (month == 12 && day == 28 && (d == Monday || d == Tuesday))) weekday) 
-        -- Golden Jubilee bank holiday
-        >>= (\b -> Right $ b || ((month == 6 && year == 2002 && (day == 3 || day == 4)))) 
-        -- end of millenium
-        >>= (\b -> Right $ b || (year == 1999 && month == 12 && day == 31))
-    where weekday                 = getweekdayname date
-          dayOfYear               = dayOfTheYear serial
-          easterMonday            = ciGetEasterMonday westernCalendarImpl year
-          isNewYearsDay day month = fmap (\d -> month == 1 && (day == 1 || (day <= 3 && d == Monday))) weekday
+isBusinessDayUK = not . isHolidayUK
 
--- TO DO          
+-- helper functions
+
+-- | List of predicates for UK holidays.  If a new holiday needs to be added,
+--   create a new predicate and add it here.
+ukholidays :: [DatePred]
+ukholidays = 
+    [
+        isWeekendUK,
+        isNewYearsDay,
+        isEasterDate,
+        isMayBankHoliday,
+        isGoldenJubileeBankHoliday,
+        isAugustBankHoliday,
+        isChristmas,
+        isBoxingDay,
+        isEndOfMillenium
+    ]
+
+isNewYearsDay :: DatePred
+isNewYearsDay date@(CalDate d m _ _) = m == 1 && (d == 1 || (d <= 3 && getweekdayname date == Monday))
+
+-- | Is the date Easter Monday or Good Friday
+isEasterDate :: DatePred
+isEasterDate d = doy == em || doy == em - 3
+    where doy = dayOfTheYear $ getserial d
+          em = ciGetEasterMonday westernCalendarImpl . getyear $ d
+
+-- | Is date one of the two bank holidays in May
+--   There was no late bank holiday in 2002 because of the Golden Jubilee bank holiday on June 3rd
+--   See https://www.timeanddate.com/holidays/uk/2002
+isMayBankHoliday :: DatePred
+isMayBankHoliday date@(CalDate d m y _)
+    = m == 5 && (d <= 7 || (d >= 25 && y /= 2002)) && getweekdayname date == Monday
+
+-- | Is the golden jubilee bank holiday (3rd June 2002) or the early spring bank holiday that followed
+--   on the 4th?
+isGoldenJubileeBankHoliday :: DatePred
+isGoldenJubileeBankHoliday (CalDate d m y _) = y == 2002 && m == 6 && (d == 3 || d == 4)
+
+isAugustBankHoliday :: DatePred
+isAugustBankHoliday date@(CalDate d m _ _)
+    = m == 8 && d >= 25 && getweekdayname date == Monday
+
+-- | If Christmas falls on a weekend, then you get the Monday or Tuesday off
+--   See, for example, https://www.timeanddate.com/holidays/uk/2004.  Christmas was on a Saturday
+--   and, hence, as a holiday, was observed on the following Tuesday.
+isChristmas :: DatePred
+isChristmas date@(CalDate d m _ _)
+    = m == 12 &&
+        (d == 25 || (d == 27 && (wd == Monday || wd == Tuesday)))
+    where wd = getweekdayname date
+
+-- | The holiday after Christmas day
+isBoxingDay :: DatePred
+isBoxingDay date@(CalDate d m _ _)
+    = m == 12 &&
+        (d == 26 || (d == 28 && (wd == Monday || wd == Tuesday)))
+    where wd = getweekdayname date
+
+-- | Sounds apocalyptic, but not really
+isEndOfMillenium :: CalDate -> Bool
+isEndOfMillenium (CalDate 31 12 1999 _) = True
+isEndOfMillenium _                   = False
+          
 isHolidayUK :: DatePred
-isHolidayUK d = Right True
+isHolidayUK d = foldr (||) False $ map ($ d) ukholidays 
 
 isWeekendUK :: DatePred
-isWeekendUK = fmap isWesternWeekend . getweekdayname
+isWeekendUK = isWesternWeekend . getweekdayname
