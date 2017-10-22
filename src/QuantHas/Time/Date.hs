@@ -14,6 +14,13 @@
     
 -}
 
+{-|
+  Module: QuantHas.Time.Date
+  Description: Date type and associated functions over dates
+  Copyright: (c) Simon Courtenage 2017
+  Maintainer: courtenage@gmail.com
+-}
+
 module QuantHas.Time.Date
   (module QuantHas.Time.TimeUnit
  , module QuantHas.Time.Date
@@ -35,7 +42,7 @@ type SerialNumber = Int
 data Date =
     Date { getCalDate:: CalDate }
   | NullDate
-  deriving (Eq)
+  deriving (Eq,Ord)
 
 data CalDate
   = CalDate

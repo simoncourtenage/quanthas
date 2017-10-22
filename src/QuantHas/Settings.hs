@@ -19,8 +19,8 @@ import Data.Maybe
 import QuantHas.Time.Date
 
 data Settings = Settings {
-                            evaluationDate :: Date,
-                            includeReferenceDateEvents :: Bool,
+                            evalDate :: Date,
+                            includeRefDateEvents :: Bool,
                             includeTodaysCashFlows :: Maybe Bool,
                             enforcesTodaysHistoricFixings :: Bool
                          }

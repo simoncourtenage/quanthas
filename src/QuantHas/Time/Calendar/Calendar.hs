@@ -39,6 +39,9 @@ import QuantHas.Time.Period
 
 newtype Calendar = Calendar Cal
 
+instance Show Calendar where
+  show (Calendar c) = show c
+
 type DatePred = CalDate -> Bool
 
 data Cal = Cal
@@ -49,6 +52,9 @@ data Cal = Cal
                calIsHoliday :: DatePred,     -- ^ is date a holiday?
                calImpl :: CalImpl            -- ^ calendar representation
            }
+
+instance Show Cal where
+  show c = show $ "Calendar " ++ calendarName c
 
 
 -- main functions over calendars

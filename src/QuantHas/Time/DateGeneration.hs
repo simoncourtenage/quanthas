@@ -14,6 +14,13 @@
     
 -}
 
+{-|
+  Module: QuantHas.Time.DateGeneration
+  Description: DateGeneration type - specifies how dates should be generated
+  Copyright: (c) Simon Courtenage 2017
+  Maintainer: courtenage@gmail.com
+-}
+
 module QuantHas.Time.DateGeneration (module QuantHas.Time.DateGeneration) where
 
 -- comments based on comments in time/dategenerationrule.hpp in Quantlib source

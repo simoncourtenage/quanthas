@@ -14,10 +14,19 @@
     
 -}
 
+{-|
+  Module: QuantHas.Time.Schedule
+  Description: Schedule represents a sequence of coupon dates from a calendar
+  Copyright: (c) Simon Courtenage 2017
+  Maintainer: courtenage@gmail.com
+  Status: work in progress - will not compile
+-}
+
 module QuantHas.Time.Schedule(module QuantHas.Time.Schedule) where
 
 import Data.Array
 import Data.Maybe
+import Data.Bool (bool)
 import QuantHas.Time.Date
 import QuantHas.Time.Calendar.NullCalendar
 import QuantHas.Time.BusinessDayConvention
@@ -25,45 +34,66 @@ import QuantHas.Time.DateGeneration
 import QuantHas.Time.Period
 import QuantHas.Settings
 
-{-
-    Schedule are used to represent sequences of coupon dates from a calendar
--}
+{--
+  Draft commentary
+  ----------------
+  Data type: This is pretty much a faithful representation of the Schedule class in the QL code.
+  TO DO - do we need to hold all this data?  What parts are just used to calculate the
+  coupon dates and hence don't need to be kept?
+
+  Functions: this is work in progress!
+--}
 
 data Schedule = Schedule
 				{
 					dates :: [Date],
 					calendar :: Calendar,
 					convention :: BusinessDayConvention,
-					terminationDateConvention:: Maybe BusinessDayConvention,
+					termDateConvention:: Maybe BusinessDayConvention,
 					tenor :: Maybe Period,
-					rule :: DateGenerationRule,
+					rule :: Maybe DateGenerationRule,
 					endOfMonth :: Maybe Bool,
 					firstDate :: Date,
 					nextToLastDate :: Date,
-					isRegular :: [Bool]
+					regular :: [Bool]
 				}
+        deriving (Show)
 
-mkSchedule
-  :: [Date]                          -- ^ coupon dates
-  -> Calendar                        -- ^ calendar dates taken from
+-- | Create a schedule from pre-prepared values
+mkSchedule ::
+     [Date]                          -- ^ coupon dates
+  -> Calendar                        -- ^ calendar used in date calculations
   -> BusinessDayConvention           -- ^
-  -> Maybe BusinessDayConvention     -- ^
+  -> Maybe BusinessDayConvention     -- ^ business day convention for termination dates
   -> Maybe Period                    -- ^ tenor
-  -> Maybe DateGenerationRule        -- ^
+  -> Maybe DateGenerationRule        -- ^ how dates are to be generated in calculating dates for schedule
   -> Maybe Bool                      -- ^ End of month
-  -> [Bool]                          -- ^
+  -> [Bool]                          -- ^ Boolean values for dates indicating whether regular or not
   -> Either String Schedule
-mkSchedule _ _ _ _ _ Nothing _ _
-  = Left "No date generation rule provided"
-mkSchedule ds c co tco t (Just r) eom reg
-	= Right $ Schedule ds c co tco t r eom' mkNullDate mkNullDate reg
-	  where
-	  eom' = if not (isNothing t) && not (allowsEndOfMonth (fromJust t)) then Just False else eom
+mkSchedule d c conv tconv t r eom reg
+  | length reg == 0 || length reg == length d - 1
+    = Right $ mkSchedule' d c conv tconv t r eom reg
+  | otherwise
+    = Left $ "isRegular size (" ++ show (length reg) ++ ") > 0 and does not match date size - 1"
+
+-- | Make schedule from arguments (validated)
+mkSchedule' ::
+     [Date]                          -- ^ coupon dates
+  -> Calendar                        -- ^ calendar used in date calculations
+  -> BusinessDayConvention           -- ^
+  -> Maybe BusinessDayConvention     -- ^ business day convention for termination dates
+  -> Maybe Period                    -- ^ tenor
+  -> Maybe DateGenerationRule        -- ^ how dates are to be generated in calculating dates for schedule
+  -> Maybe Bool                      -- ^ End of month
+  -> [Bool]                          -- ^ Boolean values for dates indicating whether regular or not
+  -> Schedule
+mkSchedule' d c cv tcv t r eom reg = Schedule d c cv tcv t r eom' NullDate NullDate reg
+  where eom' = bool eom (Just False) $ not (isNothing t) && not (allowsEndOfMonth (fromJust t))
 
 -- | This represents the 2nd (rule-based) constructor for Schedule.  This constructor in the QL code has more
 --   conditions than the first, so is more difficult to transcribe
-mkScheduleFromEffectiveDate
-   :: Settings                        -- ^ used when effective date is calculated
+mkScheduleFromEffectiveDate :: 
+         Settings                     -- ^ used when effective date is calculated
       -> Date                         -- ^ effective date
       -> Date                         -- ^ termination date
       -> Calendar                     -- ^ calendar dates are drawn from
@@ -75,21 +105,56 @@ mkScheduleFromEffectiveDate
       -> Date                         -- ^ first date in schedule
       -> Date                         -- ^ next to last date
       -> Either String Schedule
+mkScheduleFromEffectiveDate settings efd td c cnv tdcnv t r eom fd ntl
+  = chkTermDate td 
+      >> chkDateGenerationRule initsched
+      >> chkEffectiveDate settings efd td ntl initsched
+      >> Left "TO DO"
+    where initsched = Schedule [] c cnv tdcnv t r eom' fd ntl' []
+          -- initial validation of dates and calculation of initial values
+          -- this is done in the constructor parameter list in the QL code
+          fd'  = bool fd NullDate (efd == fd)
+          ntl' = bool ntl NullDate (ntl == td) 
+          eom' = bool (Just False) eom ((not . isNothing) t && (allowsEndOfMonth . fromJust) t)
 
-{--      
-mkScheduleFromEffectiveDate _ _ (Date _ _ _ 0) _ _ _ _ _ _ _ _  = Left "Null termination date"
-mkScheduleFromEffectiveDate _ _ _ _ _ _ _ Nothing _ _ _         = Left "No date generation rule provided"
-mkScheduleFromEffectiveDate _ (Date _ _ _ 0) td c con tdcon t (Just Backward) eom (Date _ _ _ 0) ntl
-	= Left "Not complete" -- needs effective date to be retrieved from settings?
---}
 
-mkScheduleFromEffectiveDate s efd td c cnv tdcnv t r eom fd ntl
-  = chkNullDate td
-    >>= chkDateGenRule
-    >>= Left "Got here"
+-- | Check the effective date and if null and the schedule contains a Backward date
+-- generation rule, AND certain conditions are satisfied, then calculate it from
+-- either termination date or the evaluation date in the Settings.
+chkEffectiveDate ::
+     Settings
+  -> Date -- current effective date to check
+  -> Date -- termination date
+  -> Date -- next to last date
+  -> Schedule
+  -> Either String Date
+chkEffectiveDate s d td ntl sch
+  | (fromJust . rule) sch == Backward && isNullDate d && isNullDate (firstDate sch)
+    && evalDate s >= td
+    = Right $ edate ntl td $ evalDate s
+  | isNullDate d
+    = Left "null effective date"
+  | otherwise
+    = Right d -- take no action
+    -- Note that, at this point, we know that termination date and eval date are both not null
+    -- so we can call getCalDate on them
+    where edate n t e | isNullDate n = Date $ calcd (getCalDate t) (getCalDate e)
+                      | otherwise    = Date $ calcd (getCalDate n) (getCalDate e)
+          calcd d d' = subtractFromDate d (mkPeriodFromTime ((subtractDates d d') `div` 366 + 1) Years)
 
-isTermDateNull :: Date -> Either String Date
-isTermDateNull 
+-- validation functions over schedules
+
+-- | has a date generation rule been provided?
+chkDateGenerationRule :: Schedule -> Either String Schedule
+chkDateGenerationRule s | isNothing $ rule s = Left "no date generation rule provided"
+                        | otherwise          = Right s
+
+-- | has a termination date been properly specified
+chkTermDate :: Date -> Either String Date
+chkTermDate d | d == NullDate = Left "null termination date"
+              | otherwise     = Right d
+
+
 
 testMkSch  = mkScheduleFromEffectiveDate undefined undefined mkNullDate undefined undefined undefined undefined undefined undefined undefined undefined
 
@@ -264,3 +329,42 @@ isIntervalRegular conv eom date1 date2 units | date1 == advanceDateByPeriod date
                                              | otherwise                                         = False
 
 --}
+
+-- Schedule functions
+
+-- | Length of dates list - equivalent to size() function in QL Schedule class
+schLength :: Schedule -> Int
+schLength = length . dates
+
+-- | extract a particular date given its position in the schedule's list of coupon dates
+at :: Schedule -> Int -> Maybe Date
+at s i | i < length ds = Just $ ds !! i
+       | otherwise     = Nothing
+   where ds = dates s
+
+
+-- | for a given date in the schedule, get the next date
+-- In the QL code, if there is no next date, then a null date is returned.  Also, if the date
+-- is the same as a date in the Schedule's list of dates, then we return the same date (this
+-- mirrors what QL does using lower_bound).
+nextDate :: Schedule -> Date -> Date
+nextDate = undefined
+
+-- | for a given date in the schedule, get the previous date
+-- Similarly to nextDate, if there is no previous date, then return a null date
+prevDate :: Schedule -> Date -> Date
+prevDate = undefined
+
+-- | is a date, as indicated by its positionin the schedule, regular?  We assume that
+-- the position argument starts at 1 (as per QL)
+isRegular :: Schedule -> Int -> Maybe Bool
+isRegular s i | i > 0 && i <= (length . dates) s = Just $ regular s !! (i - 1)
+              | otherwise                        = Nothing
+
+isEmpty :: Schedule -> Bool
+isEmpty = (==) 0 . length . dates
+
+
+
+
+

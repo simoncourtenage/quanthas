@@ -105,6 +105,13 @@ equalPeriod :: Period -> Period -> Bool
 equalPeriod p1 p2
    = periodFrequency p1 == periodFrequency p2 && periodUnits p1 == periodUnits p2 && periodFrequency p1 == periodFrequency p2
 
+-- | Is one period less than another in terms of length of time?
+-- A particular problem here occurs when one period is a month or a year and
+-- the other period is in Days.  Because a period is not a fixed date, we are
+-- unable to translate a month or year precisely into Days - is a month 28, 30
+-- or 31 days, for example.
+-- TO DO - find a better way to represent the fact that we cannot decide - returning
+-- error means this is a partial function!
 lessThan :: Period -> Period -> Bool
 lessThan (Period 0 u1 f1) (Period l2 u2 f2) = l2 > 0
 lessThan (Period l1 u1 f1) (Period 0 u2 f2) = l1 < 0
