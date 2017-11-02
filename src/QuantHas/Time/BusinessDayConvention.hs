@@ -16,6 +16,19 @@
 
 module QuantHas.Time.BusinessDayConvention (module QuantHas.Time.BusinessDayConvention) where
 
+{-|
+  Module: QuantHas.Time.BusinessDayConvention
+  Description: Specification of how dates that are not business days should be dealt with
+  Copyright: (c) Simon Courtenage 2017
+  Maintainer: courtenage@gmail.com
+  Status: work in progress - will not compile
+-}
+
+
+-- |  See https://developers.opengamma.com/quantitative-research/Conventions-Single-Name-Credit-Default-Swaps-OpenGamma.pdf
+-- A business day convention is a convention for dealing with a date when it is not a business day.  For example,
+-- if a CDS falls due on a weekend, then one possibility is to take the next day following that is a business day
+-- (this would be Following from the values below).
 data BusinessDayConvention
     = Following
       | ModifiedFollowing

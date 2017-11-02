@@ -29,9 +29,11 @@ import Data.Maybe
 import Data.Bool (bool)
 import QuantHas.Time.Date
 import QuantHas.Time.Calendar.NullCalendar
+import QuantHas.Time.Calendar.Functions
 import QuantHas.Time.BusinessDayConvention
 import QuantHas.Time.DateGeneration
 import QuantHas.Time.Period
+import QuantHas.Time.IMM (isIMMdate)
 import QuantHas.Settings
 
 {--
@@ -52,7 +54,7 @@ data Schedule = Schedule
 					termDateConvention:: Maybe BusinessDayConvention,
 					tenor :: Maybe Period,
 					rule :: Maybe DateGenerationRule,
-					endOfMonth :: Maybe Bool,
+					useEndOfMonth :: Maybe Bool,
 					firstDate :: Date,
 					nextToLastDate :: Date,
 					regular :: [Bool]
@@ -109,7 +111,12 @@ mkScheduleFromEffectiveDate settings efd td c cnv tdcnv t r eom fd ntl
   = chkTermDate td 
       >> chkDateGenerationRule initsched
       >> chkEffectiveDate settings efd td ntl initsched
-      >> Left "TO DO"
+      >>= \e -> validEffectiveDate td e
+              >> chkTenor initsched
+              >>= reconcileDateGeneration e td firstDate "first date"
+              >>= reconcileDateGeneration e td nextToLastDate "next to last date"
+              >>= scheduleDates e td
+              >> Left "TO DO"
     where initsched = Schedule [] c cnv tdcnv t r eom' fd ntl' []
           -- initial validation of dates and calculation of initial values
           -- this is done in the constructor parameter list in the QL code
@@ -154,9 +161,124 @@ chkTermDate :: Date -> Either String Date
 chkTermDate d | d == NullDate = Left "null termination date"
               | otherwise     = Right d
 
+-- | is effective date < termination date
+validEffectiveDate ::
+     Date  -- ^ termination date
+  -> Date  -- ^ effective date
+  -> Either String Date
+validEffectiveDate td efd
+   | efd < td = Right efd
+   | otherwise = Left $
+                    "effective date ("
+                    ++ show efd
+                    ++ ") equal to or later than termination date ("
+                    ++ show td
+                    ++ ")" 
 
+chkTenor :: Schedule -> Either String Schedule
+chkTenor s | isNothing $ tenor s = Left "tenor undefined"
+           | (==0) plen          = Right $ s{rule=Just Zero}
+           | (>0) plen           = Right s
+           | otherwise           = Left $ "non-positive tenor (" ++ show p ++ ") not allowed"
+   where plen = lenPeriod p
+         p    = (fromJust . tenor) s
 
-testMkSch  = mkScheduleFromEffectiveDate undefined undefined mkNullDate undefined undefined undefined undefined undefined undefined undefined undefined
+-- | Reconcile date generation rule and relationships between dates
+-- This is based on the case-statement over the date generation rule in the Schedule constructor.
+-- The first function checks that the date to be reconciled is not null, since the reconciliation
+-- process only applies to non-null dates.
+reconcileDateGeneration ::
+     Date                -- ^ effective date
+  -> Date                -- ^ termination date
+  -> (Schedule -> Date)  -- ^ function to extract date from schedule to compare against effective and term dates
+  -> String              -- ^ description of date to be compared
+  -> Schedule
+  -> Either String Schedule
+reconcileDateGeneration e t f s sch
+  = bool (reconcileDateGeneration' (getCalDate e) (getCalDate t) f s sch) (Right sch) (isNullDate $ f sch)
+
+reconcileDateGeneration' ::
+     CalDate               
+  -> CalDate
+  -> (Schedule -> Date)
+  -> String             
+  -> Schedule
+  -> Either String Schedule
+reconcileDateGeneration' e td fd sd s
+  | elem r [Backward,Forward] = bool (Left $ err_pref ++ err_suff1) (Right s) (d > e && d < td)
+  | r == ThirdWednesday       = bool (Left $ err_pref ++ err_suff2) (Right s) (isIMMdate d False)
+    -- the following date generation rules require a null date
+  | elem r [Zero,Twentieth,TwentiethIMM,OldCDS,CDS,CDS2015]
+                              = bool (Left err_incompat) (Right s) False
+  | otherwise                 = Left "reconcileDateGeneration::unknown date generation rule"
+  where r = fromJust . rule $ s
+        d = getCalDate $ fd s
+        err_pref = sd ++ "(" ++ show d ++ ") "
+        err_suff1 = "out of effective-termination date range"
+        err_suff2 = "is not an IMM date"
+        err_incompat = sd ++ " incompatible with " ++ show r ++ " date generation rule"
+
+-- | Determine how schedule dates should be generated based on the date generation rule
+
+scheduleDates ::
+     Date                    -- ^ Effective date
+  -> Date                    -- ^ Termination date
+  -> Schedule
+  -> Either String Schedule
+scheduleDates ed td sch 
+  | rule sch == Just Zero      = scheduleDatesZero ed td sch
+  | rule sch == Just Backward  = scheduleDatesBackward ed td sch
+  | rule sch == Just Forward   = undefined
+  | elem (fromJust . rule $ sch) [Twentieth,TwentiethIMM,OldCDS,CDS,CDS2015]
+    = bool
+        (Left $ "endofmonth convention incompatible with " ++ (show $ rule sch) ++ "date generation rule")
+        (undefined)
+        (not . isNothing $ useEndOfMonth sch)
+  | otherwise
+    = Left "scheduleDates::unknown date generation rule"
+
+-- | Schedule date calculation where date generation rule is Zero
+scheduleDatesZero ::
+     Date
+  -> Date
+  -> Schedule
+  -> Either String Schedule
+scheduleDatesZero ed td sch
+  = Right $ sch{tenor=Just zyrs, dates = dl, regular = rs}
+    where zyrs = mkPeriodFromTime 0 Years
+          dl = dates sch ++ [ed,td]
+          rs = regular sch ++ [True]
+
+-- | Schedule date calculation where date generation rule is Backward
+-- In the QL code, the dates list is effectively built backwards by using a negative value for timeunit and inserting
+-- dates at the front of the list.  We could do that, but you get the same effect by building it forwards using a positive
+-- value for time unit length, and, like that, we can have a general purpose method for generating a dates list and save
+-- reversing the list for backwards.
+-- TO DO - special start/end conditions from QL code, dealing with dups on adjustment and generation of regular interval booleans
+scheduleDatesBackward ::
+     Date         -- ^ effective date
+  -> Date         -- ^ termination date
+  -> Schedule
+  -> Either String Schedule
+scheduleDatesBackward ed td sch
+   = Right $ Schedule {dates = d} -- TO DO, the start/end conditions from QL code, plus dealing with dups after adjustment.
+   where d = (fmap Date . takeWhile (>= edc)) $
+                datesList nullCalendar tdc (lenPeriod t) (units t) (convention sch) (fromJust $ useEndOfMonth sch)
+         t = fromJust $ tenor sch
+         tdc = getCalDate td
+         edc = getCalDate ed
+
+-- | Create a list of dates for a schedule
+datesList ::
+     Calendar    -- ^ Calendar to use in calculating next date
+  -> CalDate     -- ^ Date to start from.  Use CalDate because doesn't make sense to have NullDates
+  -> Int         -- ^ how much to advance each date by (used in conjunction with TimeUnit)
+  -> TimeUnit    -- ^ units of advancement
+  -> BusinessDayConvention -- ^ how dates should be adjusted if holiday
+  -> Bool        -- ^ should end of months be catered for if TimeUnit is Months or Years
+  -> [CalDate]
+datesList cal d t tu bc eom
+  = d : datesList cal (advanceDateByUnit cal d t tu bc eom) t tu bc eom
 
 -- the constructor in Quantlib that corresponds to the next function is complex - we split the different
 -- functionalities of the C++ constructor across several helper functions

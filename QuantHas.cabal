@@ -20,11 +20,14 @@ Library
                     QuantHas.Time.Date
                     QuantHas.Time.DayName
                     QuantHas.Time.DayCounter
+                    QuantHas.Time.DateGeneration
                     QuantHas.Time.BusinessDayConvention
                     QuantHas.Time.Calendar.Calendar
+                    QuantHas.Time.Calendar.NullCalendar
                     QuantHas.Time.Calendar.UnitedKingdom
                     QuantHas.Time.Calendar.CalendarImpl
                     QuantHas.Time.Calendar.WesternCalendarImpl
+                    QuantHas.Time.Calendar.Functions
                     QuantHas.Time.Schedule
                     QuantHas.Settings
                     -- QuantHas.Require

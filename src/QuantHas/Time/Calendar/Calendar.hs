@@ -60,18 +60,14 @@ instance Show Cal where
 -- main functions over calendars
 
 -- | Is the date a business day.
---   Note that this function is responsible for filtering out null dates
-isBusinessDay :: Calendar -> Date -> Either String Bool
-isBusinessDay _ NullDate = Left "Cannot determine business day from null date"
-isBusinessDay (Calendar c) d = Right . calIsBusinessDay c . getCalDate $ d
+isBusinessDay :: Calendar -> CalDate -> Bool
+isBusinessDay (Calendar c) d = calIsBusinessDay c $ d
 
-isWeekend :: Calendar -> Date -> Either String Bool
-isWeekend _ NullDate = Left "Cannot determine weekend from null date"
-isWeekend (Calendar c) d = Right . calIsWeekend c . getCalDate $ d
+isWeekend :: Calendar -> CalDate -> Bool
+isWeekend (Calendar c) d = calIsWeekend c $ d
 
-isHoliday :: Calendar -> Date -> Either String Bool
-isHoliday _ NullDate = Left "Cannot determine holiday from null date"
-isHoliday (Calendar c) d = Right . calIsHoliday c . getCalDate $ d
+isHoliday :: Calendar -> CalDate -> Bool
+isHoliday (Calendar c) d = calIsHoliday c $ d
 
 getEasterMonday :: Calendar -> Int -> Int
 getEasterMonday (Calendar c) = (ciGetEasterMonday . calImpl) c

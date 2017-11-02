@@ -6,6 +6,7 @@ import Test.Tasty.HUnit (assertEqual,testCase)
 import Tests.DayCounterTest (dayCounterTestGroup)
 import Tests.CalendarTest (calendarTestGroup)
 import Tests.DateTest (dateTestGroup)
+import Tests.ScheduleTest (scheduleTestGroup)
 
 -- runtests1 = runTestTT daycountertests
 -- runtests2 = runTestTT calendartests
@@ -14,7 +15,7 @@ main = defaultMain unitTests
 
 unitTests =
     testGroup " Unit tests"
-    [calendarTestGroup,dayCounterTestGroup,dateTestGroup]
+    [calendarTestGroup,dayCounterTestGroup,dateTestGroup,scheduleTestGroup]
 
 {--
 main = do

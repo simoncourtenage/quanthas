@@ -34,4 +34,5 @@ data DateGenerationRule
       | TwentiethIMM   -- all but effective date are 20th of an IMM month (term date also modified
       | OldCDS         -- same as TwentiethIMM with unrestricted date ends and with log/stub coupon period
       | CDS            -- CDS standard rule since 2009
+      | CDS2015
       deriving (Eq, Show)
