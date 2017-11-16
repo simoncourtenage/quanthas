@@ -19,6 +19,7 @@ import Test.Tasty.HUnit
 scheduleTestGroup = testGroup "Schedule Tests"
     [
            schedule_test1
+         , schedule_test2
          , schedule_backwards_dates_1 
     ]
 
@@ -26,11 +27,15 @@ schedule_test1 = testCase "Schedule datesList test" $ assertEqual "" expected ac
     where actual = last . take 7 $ datesList nullCalendar date1 1 Months Following False
           expected = date2
 
+schedule_test2 = testCase "Schedule datesList test - negative" $ assertEqual "" expected actual
+    where actual = last . take 7 $ datesList nullCalendar date2 (negate 1) Months Following False
+          expected = date1
+
 schedule_backwards_dates_1
     = testCase "Schedule Backwards Dates Test" $ assertEqual "" expected actual
         where actual = dates sched
               expected = scheddates
-              sched    = fromRight $ scheduleDatesBackward begin end initSched
+              sched    = fromRight $ scheduleDates begin end initSched
               begin    = fromJust $ mkDate 01 01 2017
               end      = fromJust $ mkDate 09 01 2017
               tenor    = Just $ mkPeriodFromTime 1 Months

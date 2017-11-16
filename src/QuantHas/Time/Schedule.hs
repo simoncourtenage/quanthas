@@ -262,8 +262,8 @@ scheduleDatesBackward ::
   -> Either String Schedule
 scheduleDatesBackward ed td sch
    = Right $ Schedule {dates = d} -- TO DO, the start/end conditions from QL code, plus dealing with dups after adjustment.
-   where d = (fmap Date . takeWhile (>= edc)) $
-                datesList nullCalendar tdc (lenPeriod t) (units t) (convention sch) (fromJust $ useEndOfMonth sch)
+   where d = (fmap Date . takeWhile (<= tdc)) $
+                datesList nullCalendar edc (lenPeriod t) (units t) (convention sch) (fromJust $ useEndOfMonth sch)
          t = fromJust $ tenor sch
          tdc = getCalDate td
          edc = getCalDate ed
