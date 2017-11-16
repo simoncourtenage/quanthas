@@ -15,8 +15,4 @@ functionality exists.  However, the Schedule class is only partially complete (t
 
 ### Contact me
 
-<<<<<<< HEAD
 Any questions, please contact me via email (see profile) or raise an issue via github.
-=======
-Any questions, please contact me via email (see profile) or raise an issue via github.
->>>>>>> a4eebe001d9e61122d2875b04cc8e9afaed33044
