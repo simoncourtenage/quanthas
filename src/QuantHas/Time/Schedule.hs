@@ -115,8 +115,9 @@ mkScheduleFromEffectiveDate settings efd td c cnv tdcnv t r eom fd ntl
               >> chkTenor initsched
               >>= reconcileDateGeneration e td firstDate "first date"
               >>= reconcileDateGeneration e td nextToLastDate "next to last date"
-              >>= scheduleDates e td
-              >> Left "TO DO"
+              >>= genScheduleDates e td
+              >>= adjustDates
+              -- >> Left "TO DO" -- TO DO!!
     where initsched = Schedule [] c cnv tdcnv t r eom' fd ntl' []
           -- initial validation of dates and calculation of initial values
           -- this is done in the constructor parameter list in the QL code
@@ -219,13 +220,14 @@ reconcileDateGeneration' e td fd sd s
         err_incompat = sd ++ " incompatible with " ++ show r ++ " date generation rule"
 
 -- | Determine how schedule dates should be generated based on the date generation rule
+-- We assume that tenor has been checked by this point and therefore can extract valid period
 
-scheduleDates ::
+genScheduleDates ::
      Date                    -- ^ Effective date
   -> Date                    -- ^ Termination date
   -> Schedule
   -> Either String Schedule
-scheduleDates ed td sch 
+genScheduleDates ed td sch 
   | rule sch == Just Zero      = scheduleDatesZero ed td sch
   | rule sch == Just Backward  = scheduleDatesBackward ed td sch
   | rule sch == Just Forward   = undefined
@@ -254,7 +256,6 @@ scheduleDatesZero ed td sch
 -- dates at the front of the list.  We could do that, but you get the same effect by building it forwards using a positive
 -- value for time unit length, and, like that, we can have a general purpose method for generating a dates list and save
 -- reversing the list for backwards.
--- TO DO - special start/end conditions from QL code, dealing with dups on adjustment and generation of regular interval booleans
 scheduleDatesBackward ::
      Date         -- ^ effective date
   -> Date         -- ^ termination date
@@ -262,11 +263,24 @@ scheduleDatesBackward ::
   -> Either String Schedule
 scheduleDatesBackward ed td sch
    = Right $ Schedule {dates = d} -- TO DO, the start/end conditions from QL code, plus dealing with dups after adjustment.
-   where d = (fmap Date . takeWhile (<= tdc)) $
-                datesList nullCalendar edc (lenPeriod t) (units t) (convention sch) (fromJust $ useEndOfMonth sch)
+   where d = (reverse . prefixDates . fmap Date . takeWhile (>= exitDate)) $
+                datesList
+                  nullCalendar
+                  (getCalDate seedDate)
+                  (negate $ lenPeriod t)
+                  (units t)
+                  (convention sch)
+                  (fromJust $ useEndOfMonth sch)
          t = fromJust $ tenor sch
          tdc = getCalDate td
-         edc = getCalDate ed
+         ntl = nextToLastDate sch
+         fd  = firstDate sch
+         seedDate | (not . isNullDate) ntl = ntl
+                  | otherwise              = td
+         exitDate | (not . isNullDate) fd = getCalDate fd
+                  | otherwise             = getCalDate ed
+         prefixDates ds | (not . isNullDate) ntl = td : ds
+                        | otherwise              = ds
 
 -- | Create a list of dates for a schedule
 datesList ::
@@ -280,179 +294,11 @@ datesList ::
 datesList cal d t tu bc eom
   = d : datesList cal (advanceDateByUnit cal d t tu bc eom) t tu bc eom
 
--- the constructor in Quantlib that corresponds to the next function is complex - we split the different
--- functionalities of the C++ constructor across several helper functions
+-- | apply adjustments to the generated schedule date
+adjustDates :: Schedule -> Either String Schedule
+adjusDates = undefined
 
-{--
-
--- commented out this block - being reworked
-
-mkScheduleFromEffectiveDate
-  settings effDate termDate cal convention tdConvention tenor (Just rule) endOfMonth firstDate nextToLastDate
-   = let
-   	 	effectiveDate = chkEffectiveDate (calcEffectiveDate settings termDate effDate firstDate nextToLastDate rule) termDate
-   	 	rule'         = if (lenPeriod (fromJust tenor) == 0) then
-   	 						       Zero
-   	 					        else
-                        undefined
-                      -- TO DO
-   	 						       --require (not (lenPeriod (fromJust tenor) < 0)) "Non positive tenor not allowed" rule
-   	 	firstDate_	  = if firstDate == effectiveDate then mkNullDate else firstDate
-   	 	ntlDate_	    = if nextToLastDate == termDate then mkNullDate else nextToLastDate
-   	 	endOfMonth'   = if isJust tenor && allowsEndOfMonth (fromJust tenor) then endOfMonth else Just False
-   	 	schedule 	    = Schedule [] cal convention tdConvention tenor rule' endOfMonth' firstDate_ ntlDate_ []
-     in
-   	 	calcSchedule nullCalendar effectiveDate termDate firstDate (chkScheduleDates schedule effDate termDate)
-
-{--
-	What the QL version of schedule constructor does - in order
-	1. decides if effective date needs to be calculated, and if yes, calculates it
-	2. checks if rule needs to be set
-	3. sanity checks rule against date
-	4. calculates dates using rule etc.  - really complex!
---}
-
-calcEffectiveDate :: Settings               -- ^ QuantHas settings
-                     -> Date                -- ^ termination date
-                     -> Date                -- ^ effective date as supplied
-                     -> Date                -- ^ first date supplied for schedule
-                     -> Date                -- ^ next to last date
-                     -> DateGenerationRule  -- ^ how should we generate dates for the schedule?
-                     -> Either String Date
--- effective date is null and schedule is backward
-calcEffectiveDate settings termDate (Date 0 0 0 0) (Date 0 0 0 0) ntldate Backward
-  | isNullDate ntldate = Left $ subtractFromDate termDate (mkPeriodFromTime ((subtractDates termDate evalDate)/366+1) Years)
-  | otherwise          = Left $ subtractFromDate ntldate (mkPeriodFromTime ((subtractDates ntldate evalDate)/366+1) Years)
-   	where
-   	evalDate = evaluationDate settings
-calcEffectiveDate _ _ effdate _ _ _  | isNullDate effdate = Left "Null effective date"
-                                     | otherwise          = Right effdate
-
--- | sanity check that effective date is not equal to or later than termination date
---   TO DO: is this true even if BACKWARDS?
-chkEffectiveDate :: Date -> Date -> Either String Date
-chkEffectiveDate effDate termDate
-   | effDate < termDate = Right effDate
-   | otherwise          = Left  $ "Effective date " + show effDate + " equal to or later than termination date"
-
-{--
-  chkScheduleDates is used to check first date and next to last date against the dategeneration rule.
-	In the C++ code for the Schedule constructor, this is represented by two switch statements - which do
-	the same thing over the two dates.
---}
-chkScheduleDates :: Schedule
-                    -> Date       -- ^ effective date
-                    -> Date       -- ^ termindation date
-                    -> Either String Schedule
-chkScheduleDates s@(Schedule _ _ _ _ _ Backward _ fdate ntldate _) edate tdate
-  | fdate > edate && fdate < tdate = Right s
-  | otherwise = Left $ show fdate + " out of range effective date - termination date"
-chkScheduleDates s@(Schedule _ _ _ _ _ Forward _ fdate ntldate _) edate tdate
-  | fdate > edate && fdate < tdate = Right s
-  | otherwise = Left (show fdate + " out of range effective date - termination date")
-
-
-{-
-	calcSchedule is the penultimate stage of the Schedule constructure in Quantlib, which calculates the dates based
-	on the DateGeneration rule.  The C++ code uses a switch statement, which here is represented using pattern matching.
--}
-
-calcSchedule :: Calendar -> Date -> Date -> Date -> Schedule -> Schedule
-calcSchedule ncal edate tdate fstdate (Schedule d cal conv tdconv tenor Zero eom fdate ntldate isreg) 
-	= Schedule newdates cal conv tdconv (Just tenor') Zero eom fdate ntldate (isreg ++ [True])
-	  where
-	  newdates = d ++ [edate,tdate]
-	  tenor' = mkPeriodFromTime 0 Years
-calcSchedule ncal edate tdate fstdate sch@(Schedule ds cal conv tdconv tenor r@Backward eom fdate ntldate isreg) 
-	= calcScheduleBackward (Schedule ds' cal conv tdconv tenor r eom fdate ntldate isreg')
-        ncal edate tdate (seed,exitd) (nextSchDate nullCalendar (fromJust tenor) conv (fromJust eom))
-	  where
-       {-
-        If we have a nextToLast date, then use it and calculate the regularity of the interval
-        calcIsReg checks that the nextToLast date is a whole Period behind the termination date.
-        If it is, then the interval between them is regular, else it is not.
-       -}
-	     (ds',isreg') = let calcIsReg = isIntervalRegular conv (fromJust eom) ntldate tdate (-1*tenor)
-                      in
-                          if (not (isNullDate ntldate)) then
-                            ([ntldate,tdate],[calcIsReg])
-                          else
-                            ([tdate],[])
-	     seed      = if isNullDate ntldate then tdate else ntldate
-	     exitd     = if isNullDate fstdate then edate else fstdate
-
-
-{-
-  Calculate coupon dates backwards from termination date.
--}
-calcScheduleBackward :: Schedule
-                        -> Calendar
-                        -> Date           -- ^ effective date for start of schedule of payments
-                        -> Date           -- ^ termination date for schedule of payments
-                        -> (Date,Date)    -- ^ seed date and exit date
-                        -> (Date -> Int -> Date) -- ^ function for calculating next date in sequence
-                        -> Schedule
-calcScheduleBackward (Schedule ds cal conv tdconv tenor r eom fdate ntldate isreg) ncal edate tdate (seedd,exitd) ndf
-	= Schedule coupondates cal conv tdconv tenor r eom fdate ntldate regs
-    where
-      (coupondates,regs) = schDatesBackward cal exitd fdate seedd tenor conv eom 1 (ds,isreg) ndf (ndf seed (-1))
-
-{-
-  Calculates dates and interval regularity for schedule backwards
--}
-schDatesBackward :: Calendar
-                    -> Date             -- ^ exit date from schedule
-                    -> Date             -- ^ first date of schedule
-                    -> Date             -- ^ seed date
-                    -> Period           -- ^ 'tenor' of schedule
-                    -> BusinessDayConvention
-                    -> Bool             -- ^ end of month?
-                    -> Int              -- ^ number of periods seen so far
-                    -> ([Date],[Bool])  -- ^ accumulative list of coupon dates and interval flags
-                    -> (Date -> Int -> Date) -- ^ function for calculating next date in schedule
-                    -> ([Date],[Bool])  -- ^ list of coupon dates and interval flags for schedule
-schDatesBackward cal exitdate firstdate seeddate tenor conv eom periods (dates,intervals) ndf nextdate
-    | nextdate < exitdate = if ((not $ isNullDate firstdate) && adjustCalendarDate cal hddate conv != adjustCalendarDate cal firstdate conv)
-                            then
-                              (firstdate : dates, False : intervals)
-                            else
-                              (dates,intervals)
-    | otherwise           = if (adjustCalendarDate cal hddate conv != adjustCalendarDate cal nextdate conv)
-                            then
-                              schDatesBackward cal exitdate firstdate seeddate tenor conv eom (periods+1) (nextdate: dates,True:intervals) ndf ndate'
-                            else
-                              schDatesBackward cal exitdate firstdate seeddate tenor conv eom (periods+1) (dates,intervals) ndf ndate'
-                            where
-                            hddate = head dates
-                            ndate' = ndf seed (negate $ periods+1)
-
-
--- | Calculate next date in schedule
-nextSchDate :: Calendar                   -- ^ Calendar to use when advancing date
-               -> Period                  -- ^ Specification of interval in form of Period value
-               -> BusinessDayConvention  -- ^ business day convention
-               -> Bool                    -- ^ use end of month?
-               -> Date                    -- ^ advance from this 'seed' date
-               -> Int                     -- ^ how many intervals to be counted from seed date to new date
-               -> Date
-nextSchDate cal p conv eom seed intcnt
-  = advanceDateByPeriod cal seed (periodOp (*intcnt) p) conv eom -- ???
-
-
--- | Used to determine whether an interval between two dates is regular.  If the distance from date2 by units is
--- |equal to date1, then interval between date1 and date2 is regular.
-isIntervalRegular :: BusinessDayConvention
-                     -> Bool    -- ^ end of month flag
-                     -> Date    -- ^ date marking start of interval
-                     -> Date    -- ^ date marking end of interval
-                     -> Int     -- ^ length of interval
-                     -> Bool    -- ^ True if interval between dates is regular
-isIntervalRegular conv eom date1 date2 units | date1 == advanceDateByPeriod date2 units conv eom = True
-                                             | otherwise                                         = False
-
---}
-
--- Schedule functions
+-- Misc. schedule functions
 
 -- | Length of dates list - equivalent to size() function in QL Schedule class
 schLength :: Schedule -> Int

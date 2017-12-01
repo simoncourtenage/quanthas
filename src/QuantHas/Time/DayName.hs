@@ -23,4 +23,6 @@
 
 module QuantHas.Time.DayName (DayName(..)) where
 
-data DayName =  Sunday | Monday | Tuesday | Wednesday | Thursday | Friday | Saturday deriving (Eq, Show, Enum)
+data DayName
+  =  Sunday | Monday | Tuesday | Wednesday | Thursday | Friday | Saturday
+  deriving (Eq, Show, Enum, Ord)

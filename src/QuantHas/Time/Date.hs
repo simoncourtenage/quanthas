@@ -178,7 +178,7 @@ makeSerialNumber d m y = d + (monthOffset m (isLeapYear y)) + (yearOffset y)
 dayOfTheYear :: SerialNumber -> Int
 dayOfTheYear serial = serial - yearOffset(calcyear serial)
 
--- returns a value in the range 1 (Sunday) - 7 (Saturday) corresponding to the position of the day
+-- | Returns a value in the range 1 (Sunday) - 7 (Saturday) corresponding to the position of the day
 -- in the week
 weekday :: CalDate -> Int
 weekday d
@@ -188,6 +188,19 @@ weekday d
 -- returns the name of the day of week
 getweekdayname :: CalDate -> DayName
 getweekdayname = toEnum . pred . weekday
+
+-- | Calculate date corresponding to nth occurrence of day name in a particular
+-- month and year
+
+nthWeekDay :: Int -> DayName -> Month -> Year -> Maybe Date
+nthWeekDay n d m y
+    = mkCalDate m 1 y
+      >>= \cd -> let
+                    firstd = getweekdayname cd
+                    d'     = (n-1)*7 + 1 + (fromEnum d) + rest 
+                    rest | firstd <= d = negate $ fromEnum firstd
+                         | otherwise   = 7 - fromEnum firstd
+                 in mkDate m d' y 
 
 -- month functions
               
