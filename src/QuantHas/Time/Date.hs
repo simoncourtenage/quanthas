@@ -21,6 +21,8 @@
   Maintainer: courtenage@gmail.com
 -}
 
+-- TO DO - see how much can be replaced using Data.Time
+
 module QuantHas.Time.Date
   (module QuantHas.Time.TimeUnit
  , module QuantHas.Time.Date

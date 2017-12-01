@@ -295,9 +295,16 @@ datesList cal d t tu bc eom
   = d : datesList cal (advanceDateByUnit cal d t tu bc eom) t tu bc eom
 
 -- | apply adjustments to the generated schedule date
+-- TO DO - add other adjustments
 adjustDates :: Schedule -> Either String Schedule
-adjusDates = undefined
+adjustDates = Right . adjust3rdWednesday
 
+adjust3rdWednesday :: Schedule -> Schedule
+adjust3rdWednesday s
+  | (fromJust . rule) s == ThirdWednesday = s { dates = d }
+  | otherwise                             = s 
+    where d = ((:) . head) <*> (catMaybes . map (f . getCalDate) . tail) $ dates s
+          f sd = nthWeekDay 3 Wednesday (getmonth sd) (getyear sd)  
 -- Misc. schedule functions
 
 -- | Length of dates list - equivalent to size() function in QL Schedule class
