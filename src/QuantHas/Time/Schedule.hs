@@ -305,6 +305,10 @@ adjust3rdWednesday s
   | otherwise                             = s 
     where d = ((:) . head) <*> (catMaybes . map (f . getCalDate) . tail) $ dates s
           f sd = nthWeekDay 3 Wednesday (getmonth sd) (getyear sd)  
+
+adjustEOM :: Schedule -> Schedule
+adjustEOM s = undefined
+
 -- Misc. schedule functions
 
 -- | Length of dates list - equivalent to size() function in QL Schedule class

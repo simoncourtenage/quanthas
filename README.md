@@ -2,16 +2,28 @@
 
 ### Description
 
-The QuantHas project is an attempt to port QuantLib C++ code to the functional programming language Haskell.
+The QuantHas project is an attempt to port the open source quantitative finance library, [QuantLib](https://github.com/lballabio/QuantLib), which is written in C++, to the functional programming language [Haskell](https://www.haskell.org/).
 
-This project is a work in progress.  Much of the code written so far is in draft form.  The approach taken so far has been
-to read through the Quantlib C++ code and work out the best way to represent it in Haskell.  This is not the best approach,
-because it is fairly bottom-up.  But once a significant part of the code has been translated, and the translation problem better understood, the architectural aspects will be revisited.
+The project is a work in progress, with current work focussing on the QuantLib Time classes.
+
+### Design Philosophy
+
+There are two considerations to take into account in the design and development of QuantHas.
+
+1. We need to be able to regression test QuantHas against QuantLib, and
+2. We need to be able to keep up-to-date with changes and developments in QuantLib.
+
+With this in mind, current development is directed by the structure of the QuantLib C++ code.  This has its own challenges - taking object-oriented code (in C++) and producing Haskell.  So this is not the best approach, because it is fairly bottom-up.  But once a significant part of the code has been translated, and the translation problem better understood, the architectural aspects will be revisited with the aim of refactoring and restructuring, whilst still achieving the two design objectives.
+
+### Trying it out
+
+You can build and test QuantHas using stack.
+
+Testing uses the tasty framework - specifically HUnit support within the tasty framework.  See the testsuite directory for details.  Tests are currently unit tests, for example, of Schedule functionality.
 
 ### Update
 
-22/10/17 - the current work has concentrated on the Time classes in QuantLib.  Most of the Calendar and Date
-functionality exists.  However, the Schedule class is only partially complete (this is what I am working on now.)
+Currently, I'm working on completing the Schedule module - which brings into QuantHas the functionality of the Schedule class from QuantLib.  This is used to create, for example, a schedule of payment dates for financial instruments.  It's not a particularly well-documented class in QuantLib, so working through all the paths in the C++ code (particularly the Schedule constructor), and deciding on the best strategy for representing the same meaning in Haskell is taking a little while. 
 
 ### Contact me
 
