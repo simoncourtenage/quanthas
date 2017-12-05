@@ -252,10 +252,6 @@ scheduleDatesZero ed td sch
           rs = regular sch ++ [True]
 
 -- | Schedule date calculation where date generation rule is Backward
--- In the QL code, the dates list is effectively built backwards by using a negative value for timeunit and inserting
--- dates at the front of the list.  We could do that, but you get the same effect by building it forwards using a positive
--- value for time unit length, and, like that, we can have a general purpose method for generating a dates list and save
--- reversing the list for backwards.
 scheduleDatesBackward ::
      Date         -- ^ effective date
   -> Date         -- ^ termination date
