@@ -19,7 +19,7 @@
   Description: Schedule represents a sequence of coupon dates from a calendar
   Copyright: (c) Simon Courtenage 2017
   Maintainer: courtenage@gmail.com
-  Status: work in progress - will not compile
+  Status: work in progress
 -}
 
 module QuantHas.Time.Schedule(module QuantHas.Time.Schedule) where
@@ -307,8 +307,9 @@ adjust3rdWednesday s
           f sd = nthWeekDay 3 Wednesday (getmonth sd) (getyear sd)  
 
 adjustEOM :: Schedule -> Schedule
-adjustEOM s = undefined
-
+adjustEOM s
+  | convention s == Unadjusted = undefined
+  | otherwise                  = 
 -- Misc. schedule functions
 
 -- | Length of dates list - equivalent to size() function in QL Schedule class
