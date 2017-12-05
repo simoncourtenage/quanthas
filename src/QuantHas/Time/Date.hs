@@ -33,6 +33,7 @@ import QuantHas.Time.TimeUnit
 import QuantHas.Time.Period
 import QuantHas.Time.DayName
 import Control.Applicative
+import qualified Data.Time as DT (gregorianMonthLength)
 
 type Day = Int
 type Month = Int
@@ -219,11 +220,11 @@ isEndOfMonth d
       in getday d == monthlens !! (getmonth d - 1)
       
 -- get the date corresponding to the end of the month for a given date
+-- rewritten to use Data.Time::greogorianMonthLength - SC 5/12/17
 endOfMonth :: CalDate -> CalDate
 endOfMonth d
     = CalDate (getmonth d) lastday (getyear d) (makeSerialNumber lastday (getmonth d) (getyear d))
-    where lastday = monthlens !! (getmonth d - 1)
-          monthlens = if isLeapYear $ getyear d then monthDaysLeap else monthDays
+    where lastday = DT.gregorianMonthLength (fromIntegral $ getyear d) (getmonth d)
 
 monthDays :: [Int]
 monthDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
