@@ -305,7 +305,7 @@ adjust3rdWednesday s
 adjustEOM :: Schedule -> Schedule
 adjustEOM s
   | convention s == Unadjusted = undefined
-  | otherwise                  = 
+  | otherwise                  = undefined
 -- Misc. schedule functions
 
 -- | Length of dates list - equivalent to size() function in QL Schedule class
