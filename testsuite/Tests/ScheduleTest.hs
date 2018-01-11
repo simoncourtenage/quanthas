@@ -26,8 +26,8 @@ scheduleTestGroup = testGroup "Schedule Tests"
     ]
 
 schedule_test1 = testCase "Schedule datesList test" $ assertEqual "" expected actual
-    where actual = last . take 7 $ datesList nullCalendar date1 1 Months Following False
-          expected = date2
+    where actual   = take 7 $ datesList nullCalendar date1 1 Months Following False
+          expected = datelist_test1
 
 schedule_test2 = testCase "Schedule datesList test - negative" $ assertEqual "" expected actual
     where actual = last . take 7 $ datesList nullCalendar date2 (negate 1) Months Following False
@@ -37,17 +37,31 @@ schedule_backwards_dates_1
     = testCase "Schedule Backwards Dates Test" $ assertEqual "" expected actual
         where actual = dates sched
               expected = scheddates
-              sched    = fromRight $ scheduleDates begin end initSched
+              sched    = fromRight $ genScheduleDates begin end initSched
               begin    = fromJust $ mkDate 01 01 2017
               end      = fromJust $ mkDate 09 01 2017
               tenor    = Just $ mkPeriodFromTime 1 Months
               initSched = fromRight $
                             mkSchedule [] calendarUKLSE Following Nothing tenor (Just Backward) (Just False) []
 
+{--
+    Quantlib, with these parameters, generates a schedule - before any adjustments - with
+    the following dates:
+    January 1st, 2017
+    January 20th, 2017
+    February 20th, 2017
+    March 20th, 2017
+    April 20th, 2017
+    May 22nd, 2017
+    June 20th, 2017
+    July 20th, 2017
+    August 20st, 2017
+    September 1st, 2017
+--}
 schedule_backwards_dates_2
     = testCase "Schedule Backwards Dates Test 2" $ assertEqual "" expected actual
         where actual = dates sched
-              expected = scheddates
+              expected = scheddates_unadjusted
               sched    = fromRight $
                             mkScheduleFromEffectiveDate
                                 Settings.defaultSettings
@@ -67,11 +81,19 @@ schedule_backwards_dates_2
               tenor    = Just $ mkPeriodFromTime 1 Months
 
 date1 = fromJust $ mkCalDate 01 01 2017
+datelist_test1
+    =  fmap (fromJust . uncurry3 mkCalDate)
+        [(1,1,2017),(2,1,2017),(3,1,2017),(4,1,2017),(5,1,2017),(6,1,2017),(7,1,2017)]
+
 date2 = fromJust $ mkCalDate 07 01 2017
 
 scheddates
     =  fmap (fromJust . uncurry3 mkDate)
         [(1,1,2017),(2,1,2017),(3,1,2017),(4,1,2017),(5,1,2017),(6,1,2017),(7,1,2017),(8,1,2017),(9,1,2017)]
+
+scheddates_unadjusted
+    =  fmap (fromJust . uncurry3 mkDate)
+        [(1,1,2017),(1,20,2017),(2,20,2017),(3,20,2017),(4,20,2017),(5,20,2017),(6,20,2017),(7,20,2017),(8,20,2017),(9,1,2017)]
 
 -- utils
 

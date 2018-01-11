@@ -19,9 +19,18 @@ module QuantHas.Time.Calendar.NullCalendar (nullCalendar, module QuantHas.Time.C
 import QuantHas.Time.Calendar.Calendar
 import QuantHas.Time.Calendar.CalendarImpl
 import QuantHas.Time.Date
+import QuantHas.Time.DayName
 
 nullCalendar :: Calendar
 nullCalendar
-    = mkCalendar "Null" (\_ -> False) (\_ -> False) (\_ -> False) nullCalendarImpl
+    = mkCalendar "Null" isBusinessDayNC isWeekendNC isHolidayNC undefined
 
-nullCalendarImpl = CalImpl (\_ -> \_ -> False) (\_ -> 0) (\_ -> False) undefined
+-- always return True
+isBusinessDayNC :: DatePred
+isBusinessDayNC = const True
+
+isHolidayNC :: DatePred
+isHolidayNC = const False
+
+isWeekendNC :: DatePred
+isWeekendNC = const False

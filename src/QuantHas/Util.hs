@@ -19,3 +19,10 @@ module QuantHas.Util where
 fromRight :: Either a b -> b
 fromRight (Right b) = b
 
+-- | split a list into (head, middle, last)
+-- List must have a minimum length of 2
+hml :: [a] -> Maybe (a,[a],a)
+hml [] = Nothing
+hml l | length l < 2 = Nothing
+      | otherwise    = Just (head l, (init . tail) l , last l) 
+

@@ -45,8 +45,8 @@ advanceDateByUnit ::
   -> Bool                  -- ^ end of month flag
   -> CalDate
 advanceDateByUnit cal d n unit c eom
-    | n == 0        = adjustCalendarDate cal d c
-    | unit == Weeks = adjustCalendarDate cal (addToDate d (mkPeriod (PeriodTimeArgs n Weeks))) c
+    | n == 0        = adjustCalendarDate cal c d
+    | unit == Weeks = adjustCalendarDate cal c (addToDate d (mkPeriod (PeriodTimeArgs n Weeks)))
     | unit == Days  = if (n > 0) then
                         advanceDays d n ((flip addToDate) (mkPeriodFromTime 1 Days)) (subtract 1)
                      else
@@ -54,7 +54,7 @@ advanceDateByUnit cal d n unit c eom
     | otherwise     = if (eom && isEndOfMonth d) then
                         endOfMonthBusinessDay cal d1
                       else
-                        adjustCalendarDate cal d1 c
+                        adjustCalendarDate cal c d1
                       where
                         d1                     = addToDate d (mkPeriod (PeriodTimeArgs n unit))
                         advanceDays d 0 _ _    = d
@@ -65,50 +65,64 @@ advanceDateByPeriod :: Calendar -> CalDate -> Period -> BusinessDayConvention ->
 advanceDateByPeriod cal d p bdc eom 
    = advanceDateByUnit cal d (lenPeriod p) (units p) bdc eom
 
-adjustCalendarDate :: Calendar -> CalDate -> BusinessDayConvention -> CalDate
-adjustCalendarDate cal d Unadjusted = d
-adjustCalendarDate cal d Nearest    = if (isHoliday cal d1) then d2 else d1
+adjustCalendarDate :: Calendar -> BusinessDayConvention -> CalDate -> CalDate
+adjustCalendarDate cal Unadjusted d = d
+adjustCalendarDate cal Nearest d    = if (isHoliday cal d1) then d2 else d1
                                        where
                                        (d1,d2) = untilHoliday cal (d,d)
                                        untilHoliday c (d1',d2')
                                         | (not $ isHoliday c d1') && (not $ isHoliday c d2')
                                                     = untilHoliday c (addToDate d1' (mkPeriodFromTime 1 Days),subtractFromDate d2' (mkPeriodFromTime 1 Days))
                                         | otherwise = (d1',d2')
-adjustCalendarDate cal d Following
+adjustCalendarDate cal Following d
     = whileHoliday cal d ((flip addToDate) (mkPeriodFromTime 1 Days))
     
-adjustCalendarDate cal d ModifiedFollowing
+adjustCalendarDate cal ModifiedFollowing d
     = if getmonth d1 /= getmonth d then
-        adjustCalendarDate cal d Preceding
+        adjustCalendarDate cal Preceding d
       else
         d1
       where
       d1 = whileHoliday cal d ((flip addToDate) (mkPeriodFromTime 1 Days))
 
-adjustCalendarDate cal d HalfMonthModifiedFollowing
+adjustCalendarDate cal HalfMonthModifiedFollowing d
    = if (getmonth d1 /= getmonth d) || (getday d <= 15 && getday d1 > 15) then
-        adjustCalendarDate cal d Preceding
+        adjustCalendarDate cal Preceding d
       else
         d1
       where
       d1 = whileHoliday cal d ((flip addToDate) (mkPeriodFromTime 1 Days))
 
-adjustCalendarDate cal d Preceding
+adjustCalendarDate cal Preceding d
     = whileHoliday cal d ((flip subtractFromDate) (mkPeriodFromTime 1 Days))
 
-adjustCalendarDate cal d ModifiedPreceding
+adjustCalendarDate cal ModifiedPreceding d
     = if getmonth d1 /= getmonth d then
-        adjustCalendarDate cal d Following
+        adjustCalendarDate cal Following d
       else
         d1
       where
       d1 = whileHoliday cal d ((flip subtractFromDate) (mkPeriodFromTime 1 Days))
 
+adjustCalendarDate1 :: Calendar -> CalDate -> CalDate
+adjustCalendarDate1 c d = adjustCalendarDate c Following d
 
 whileHoliday :: Calendar -> CalDate -> (CalDate -> CalDate) -> CalDate
 whileHoliday cal d f | isHoliday cal d = whileHoliday cal (f d) f
                      | otherwise       = d
 
 endOfMonthBusinessDay :: Calendar -> CalDate -> CalDate
-endOfMonthBusinessDay cal d = adjustCalendarDate cal (endOfMonth d) Preceding
+endOfMonthBusinessDay cal d = adjustCalendarDate cal Preceding (endOfMonth d) 
 
+-- | Test if date is last business day in a month.
+-- This function is called isEndOfMonth in Calendar class in QL, and tests if a Date is the
+-- last business day of month.  However, the name is also used in the Date class for a function
+-- that tests if a Date is the last calendar day in a month.  We change the name here to reflect
+-- the meaning of the function and prevent any name clashes that might arise from open imports.
+-- We get the serial number of the calendar date, increment it to the next day, then adjust it for
+-- weekends/holidays according to the calendar.  If the two dates are not in the same month, then
+-- the original date was the last business day.
+isBusinessEndOfMonth :: Calendar -> CalDate -> Bool
+isBusinessEndOfMonth c d
+  = getmonth d == getmonth d'
+  where d' = adjustCalendarDate1 c . mkCalDateFromSerial . (+1) . getserial $ d

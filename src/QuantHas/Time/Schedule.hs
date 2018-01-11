@@ -35,6 +35,7 @@ import QuantHas.Time.DateGeneration
 import QuantHas.Time.Period
 import QuantHas.Time.IMM (isIMMdate)
 import QuantHas.Settings
+import qualified QuantHas.Util as Util (hml)
 
 {--
   Draft commentary
@@ -116,8 +117,9 @@ mkScheduleFromEffectiveDate settings efd td c cnv tdcnv t r eom fd ntl
               >>= reconcileDateGeneration e td firstDate "first date"
               >>= reconcileDateGeneration e td nextToLastDate "next to last date"
               >>= genScheduleDates e td
-              >>= adjustDates
-              -- >> Left "TO DO" -- TO DO!!
+              >>= deriveRegular
+              >>= adjustSchedule
+              >>= finalSafetyCheck
     where initsched = Schedule [] c cnv tdcnv t r eom' fd ntl' []
           -- initial validation of dates and calculation of initial values
           -- this is done in the constructor parameter list in the QL code
@@ -258,8 +260,10 @@ scheduleDatesBackward ::
   -> Schedule
   -> Either String Schedule
 scheduleDatesBackward ed td sch
-   = Right $ Schedule {dates = d} -- TO DO, the start/end conditions from QL code, plus dealing with dups after adjustment.
-   where d = (reverse . prefixDates . fmap Date . takeWhile (>= exitDate)) $
+   -- TO DO, the start/end conditions from QL code, plus dealing with dups after adjustment.
+   = Right $ sch {dates = d,regular=r}
+   where d = bool (ed:ds) ds (head ds == ed)
+         ds = (reverse . prefixDates . fmap Date . takeWhile (>= exitDate)) $
                 datesList
                   nullCalendar
                   (getCalDate seedDate)
@@ -277,6 +281,7 @@ scheduleDatesBackward ed td sch
                   | otherwise             = getCalDate ed
          prefixDates ds | (not . isNullDate) ntl = td : ds
                         | otherwise              = ds
+         r = regular sch -- TO DO - add interval calculation
 
 -- | Create a list of dates for a schedule
 datesList ::
@@ -290,11 +295,18 @@ datesList ::
 datesList cal d t tu bc eom
   = d : datesList cal (advanceDateByUnit cal d t tu bc eom) t tu bc eom
 
--- | apply adjustments to the generated schedule date
--- TO DO - add other adjustments
-adjustDates :: Schedule -> Either String Schedule
-adjustDates = Right . adjust3rdWednesday
+-- | Derive the list of boolean values that indicate whether the interval between two schedule dates
+-- is regular (i.e., is the length of the tenor period) or is irregular.
 
+deriveRegular :: Schedule -> Either String Schedule
+deriveRegular s = Right s -- TO DO
+
+-- | apply adjustments to the dates in the generated schedule
+-- TO DO - add other adjustments
+adjustSchedule :: Schedule -> Either String Schedule
+adjustSchedule = Right . adjustDates . adjust3rdWednesday
+
+-- If date generation rule is 3rd Wednesday, then adjust dates to every 3rd Wednesday
 adjust3rdWednesday :: Schedule -> Schedule
 adjust3rdWednesday s
   | (fromJust . rule) s == ThirdWednesday = s { dates = d }
@@ -302,10 +314,69 @@ adjust3rdWednesday s
     where d = ((:) . head) <*> (catMaybes . map (f . getCalDate) . tail) $ dates s
           f sd = nthWeekDay 3 Wednesday (getmonth sd) (getyear sd)  
 
+-- If date generation rule is for end of month AND the seed date for date generation is an
+-- end of month, then adjust all dates to end of months
+adjustDates :: Schedule -> Schedule
+adjustDates s
+  | shouldUseEndOfMonth s && isBusinessEndOfMonth (calendar s) (getCalDate $ seedDate s) = adjustEOM s
+  | otherwise                                                  = adjustDatesCalendar s
+    where shouldUseEndOfMonth s' = isJust eom && (fromJust eom)
+          eom = useEndOfMonth s
+
+-- | adjusts dates between start and end date (exclusive) to end of month
+-- Code is really ugly
 adjustEOM :: Schedule -> Schedule
-adjustEOM s
-  | convention s == Unadjusted = undefined
-  | otherwise                  = undefined
+adjustEOM s = s { dates = d'}
+    where isUnadjusted c = c == Unadjusted
+          tc = termDateConvention s
+          f = bool eomBusiness endOfMonth (isUnadjusted $ convention s)
+          (h',l') = case isJust tc && isUnadjusted (fromJust tc) of
+                    False -> (endOfMonth . getCalDate $ h,endOfMonth . getCalDate $ l)
+                    _     -> case rule s of
+                             (Just Backward) -> (getCalDate h, eomBusiness . getCalDate $ l)
+                             _               -> (eomBusiness . getCalDate $ h, getCalDate l)
+          m' = map (Date . f . getCalDate) $ m
+          d' = Date h' : m' ++ [Date l']
+          d = dates s
+          (h,m,l) = fromJust $ Util.hml d
+          eomBusiness = endOfMonthBusinessDay (calendar s)
+
+-- | adjust dates using calendar and business day convention
+adjustDatesCalendar :: Schedule -> Schedule
+adjustDatesCalendar s = s { dates = d' }
+  where d = dates s
+        (h,m,l) = fromJust $ Util.hml d
+        r = rule s
+        c = calendar s
+        conv = convention s
+        tconv = termDateConvention s
+        ff = bool id (adjustCalendarDate c conv) (r /= (Just OldCDS))
+        lf = bool id (adjustCalendarDate c (fromJust tconv))
+                (tconv /= Nothing && tconv /= (Just Unadjusted) && r /= (Just CDS) && r /= (Just CDS2015))
+        mf = adjustCalendarDate c conv
+        fs = ff : replicate (length d - 2) mf ++ [lf]
+        d' = map Date . zipWith ($) fs . map getCalDate $ d
+
+-- | This function corresponds to the "Final safety checks" code at the end of the
+-- Schedule constructor.  It removes next to last dates (and second dates - next to first?) that are
+-- after (or before) the last (or first) date - which usually occurs when end of month adjustment is used.
+
+finalSafetyCheck :: Schedule -> Either String Schedule
+finalSafetyCheck s = Right s -- TO DO
+
+-- Find out seed date for date generation
+-- We need to work this out for adjustEOM because we don't pass round the seed date
+-- after we've generated the dates list 
+seedDate :: Schedule -> Date
+seedDate sch
+  | isJust r && (fromJust r == Backward)
+      = case isNullDate . nextToLastDate $ sch of
+        True  -> last . dates $ sch
+        False -> nextToLastDate sch
+  | otherwise
+      = undefined
+  where r = rule sch
+
 -- Misc. schedule functions
 
 -- | Length of dates list - equivalent to size() function in QL Schedule class
@@ -323,11 +394,13 @@ at s i | i < length ds = Just $ ds !! i
 -- In the QL code, if there is no next date, then a null date is returned.  Also, if the date
 -- is the same as a date in the Schedule's list of dates, then we return the same date (this
 -- mirrors what QL does using lower_bound).
+-- TO DO
 nextDate :: Schedule -> Date -> Date
 nextDate = undefined
 
 -- | for a given date in the schedule, get the previous date
 -- Similarly to nextDate, if there is no previous date, then return a null date
+-- TO DO
 prevDate :: Schedule -> Date -> Date
 prevDate = undefined
 

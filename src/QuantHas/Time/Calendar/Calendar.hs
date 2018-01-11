@@ -21,13 +21,14 @@
   Maintainer: courtenage@gmail.com
 -}
 module QuantHas.Time.Calendar.Calendar
-  (Calendar
+  (Calendar(..)
    , DatePred
    , mkCalendar
    , isBusinessDay
    , isWeekend
    , isHoliday
    , getEasterMonday
+   --, isBusinessEndOfMonth
   )
 where
 
