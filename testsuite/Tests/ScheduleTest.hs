@@ -22,7 +22,8 @@ scheduleTestGroup = testGroup "Schedule Tests"
            schedule_test1
          , schedule_test2
          , schedule_backwards_dates_1
-         , schedule_backwards_dates_2 
+         , schedule_backwards_dates_2
+         , schedule_backwards_regular
     ]
 
 schedule_test1 = testCase "Schedule datesList test" $ assertEqual "" expected actual
@@ -45,9 +46,9 @@ schedule_backwards_dates_1
                             mkSchedule [] calendarUKLSE Following Nothing tenor (Just Backward) (Just False) []
 
 {--
-    Quantlib, with these parameters, generates a schedule - before any adjustments - with
+    Quantlib, with these parameters, generates a schedule  with
     the following dates:
-    January 1st, 2017
+    January 3rd, 2017
     January 20th, 2017
     February 20th, 2017
     March 20th, 2017
@@ -55,13 +56,13 @@ schedule_backwards_dates_1
     May 22nd, 2017
     June 20th, 2017
     July 20th, 2017
-    August 20st, 2017
+    August 21st, 2017
     September 1st, 2017
 --}
 schedule_backwards_dates_2
     = testCase "Schedule Backwards Dates Test 2" $ assertEqual "" expected actual
         where actual = dates sched
-              expected = scheddates_unadjusted
+              expected = scheddates_adjusted
               sched    = fromRight $
                             mkScheduleFromEffectiveDate
                                 Settings.defaultSettings
@@ -80,6 +81,29 @@ schedule_backwards_dates_2
               ntl      = fromJust $ mkDate 08 20 2017
               tenor    = Just $ mkPeriodFromTime 1 Months
 
+schedule_backwards_regular
+    = testCase "Schedule Backwards Regular Test" $ assertEqual "" expected actual
+    where actual = regular sched
+          expected = regular_expected
+          sched    = fromRight $
+                        mkScheduleFromEffectiveDate
+                            Settings.defaultSettings
+                            begin
+                            end
+                            calendarUKLSE
+                            Following
+                            Nothing
+                            tenor
+                            (Just Backward)
+                            (Just False)
+                            NullDate
+                            ntl
+          begin    = fromJust $ mkDate 01 01 2017
+          end      = fromJust $ mkDate 09 01 2017
+          ntl      = fromJust $ mkDate 08 20 2017
+          tenor    = Just $ mkPeriodFromTime 1 Months
+          
+
 date1 = fromJust $ mkCalDate 01 01 2017
 datelist_test1
     =  fmap (fromJust . uncurry3 mkCalDate)
@@ -94,6 +118,13 @@ scheddates
 scheddates_unadjusted
     =  fmap (fromJust . uncurry3 mkDate)
         [(1,1,2017),(1,20,2017),(2,20,2017),(3,20,2017),(4,20,2017),(5,20,2017),(6,20,2017),(7,20,2017),(8,20,2017),(9,1,2017)]
+
+scheddates_adjusted
+    =  fmap (fromJust . uncurry3 mkDate)
+        [(1,3,2017),(1,20,2017),(2,20,2017),(3,20,2017),(4,20,2017),(5,22,2017),(6,20,2017),(7,20,2017),(8,21,2017),(9,1,2017)]
+
+regular_expected
+    = [False,True,True,True,True,True,True,True,False]
 
 -- utils
 

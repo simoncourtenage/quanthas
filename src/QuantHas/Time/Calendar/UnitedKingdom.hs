@@ -22,6 +22,7 @@ where
 import QuantHas.Time.Calendar.Calendar
 import QuantHas.Time.Calendar.WesternCalendarImpl
 import QuantHas.Time.Date
+import Data.Monoid (Any(..))
 
 calendarUKLSE :: Calendar
 calendarUKLSE
@@ -57,7 +58,7 @@ ukholidays =
     ]
 
 isNewYearsDay :: DatePred
-isNewYearsDay date@(CalDate d m _ _) = m == 1 && (d == 1 || (d <= 3 && getweekdayname date == Monday))
+isNewYearsDay date@(CalDate m d _ _) = m == 1 && (d == 1 || (d <= 3 && getweekdayname date == Monday))
 
 -- | Is the date Easter Monday or Good Friday
 isEasterDate :: DatePred
@@ -103,7 +104,7 @@ isEndOfMillenium (CalDate 31 12 1999 _) = True
 isEndOfMillenium _                   = False
           
 isHolidayUK :: DatePred
-isHolidayUK d = foldr (||) False $ map ($ d) ukholidays 
+isHolidayUK d = getAny . foldMap Any $ map ($ d) ukholidays 
 
 isWeekendUK :: DatePred
 isWeekendUK = isWesternWeekend . getweekdayname

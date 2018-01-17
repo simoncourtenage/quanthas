@@ -16,6 +16,8 @@
 
 module QuantHas.Util where
 
+import Control.Arrow ((&&&))
+
 fromRight :: Either a b -> b
 fromRight (Right b) = b
 
@@ -24,5 +26,10 @@ fromRight (Right b) = b
 hml :: [a] -> Maybe (a,[a],a)
 hml [] = Nothing
 hml l | length l < 2 = Nothing
-      | otherwise    = Just (head l, (init . tail) l , last l) 
+      | otherwise    = Just (head l, (init . tail) l , last l)
+
+rejoinHML :: (a,[a],a) -> [a]
+rejoinHML (a,b,c) = a : b ++ [c]
+
+
 

@@ -117,9 +117,8 @@ mkScheduleFromEffectiveDate settings efd td c cnv tdcnv t r eom fd ntl
               >>= reconcileDateGeneration e td firstDate "first date"
               >>= reconcileDateGeneration e td nextToLastDate "next to last date"
               >>= genScheduleDates e td
-              >>= deriveRegular
               >>= adjustSchedule
-              >>= finalSafetyCheck
+              >>= Right . finalSafetyCheck
     where initsched = Schedule [] c cnv tdcnv t r eom' fd ntl' []
           -- initial validation of dates and calculation of initial values
           -- this is done in the constructor parameter list in the QL code
@@ -262,7 +261,7 @@ scheduleDatesBackward ::
 scheduleDatesBackward ed td sch
    -- TO DO, the start/end conditions from QL code, plus dealing with dups after adjustment.
    = Right $ sch {dates = d,regular=r}
-   where d = bool (ed:ds) ds (head ds == ed)
+   where d = bool (ed:ds) ds (head ds == ed) -- corresponds to final check at end of Backwards section in QL code
          ds = (reverse . prefixDates . fmap Date . takeWhile (>= exitDate)) $
                 datesList
                   nullCalendar
@@ -281,7 +280,7 @@ scheduleDatesBackward ed td sch
                   | otherwise             = getCalDate ed
          prefixDates ds | (not . isNullDate) ntl = td : ds
                         | otherwise              = ds
-         r = regular sch -- TO DO - add interval calculation
+         r = deriveRegular nullCalendar t d
 
 -- | Create a list of dates for a schedule
 datesList ::
@@ -296,10 +295,13 @@ datesList cal d t tu bc eom
   = d : datesList cal (advanceDateByUnit cal d t tu bc eom) t tu bc eom
 
 -- | Derive the list of boolean values that indicate whether the interval between two schedule dates
--- is regular (i.e., is the length of the tenor period) or is irregular.
+-- is regular (i.e., is the length of the tenor period) or is irregular.  In the QL code, this is done
+-- as the dates are generated, but here we do it separately but before dates are adjusted.
 
-deriveRegular :: Schedule -> Either String Schedule
-deriveRegular s = Right s -- TO DO
+deriveRegular :: Calendar -> Period -> [Date] -> [Bool]
+deriveRegular c t ds
+    = zipWith f ds (tail ds)
+    where f d d' = addToDate (getCalDate d) t == (getCalDate d')
 
 -- | apply adjustments to the dates in the generated schedule
 -- TO DO - add other adjustments
@@ -350,19 +352,31 @@ adjustDatesCalendar s = s { dates = d' }
         c = calendar s
         conv = convention s
         tconv = termDateConvention s
+        -- should we apply special adjustment functions to the first (ff) and last (lf) dates?
         ff = bool id (adjustCalendarDate c conv) (r /= (Just OldCDS))
         lf = bool id (adjustCalendarDate c (fromJust tconv))
                 (tconv /= Nothing && tconv /= (Just Unadjusted) && r /= (Just CDS) && r /= (Just CDS2015))
+        -- adjustment function to be applied to all dates between first and last (exclusive)
         mf = adjustCalendarDate c conv
+        -- list of adjustment functions
         fs = ff : replicate (length d - 2) mf ++ [lf]
+        -- apply adjustment functions to dates (have to extract CalDate, adjust, and then
+        -- wrap up as Dates again)
         d' = map Date . zipWith ($) fs . map getCalDate $ d
 
 -- | This function corresponds to the "Final safety checks" code at the end of the
 -- Schedule constructor.  It removes next to last dates (and second dates - next to first?) that are
 -- after (or before) the last (or first) date - which usually occurs when end of month adjustment is used.
-
-finalSafetyCheck :: Schedule -> Either String Schedule
-finalSafetyCheck s = Right s -- TO DO
+finalSafetyCheck :: Schedule -> Schedule
+finalSafetyCheck s = s { dates = d'',regular = r''}
+    where d = dates s
+          r = regular s
+          (d',r') = case head d >= (head . tail) d of
+                      True  -> (head d : drop 2 d, head r : drop 2 r)
+                      False -> (d,r)
+          (d'',r'') = case last d' <= (last . init) d' of
+                        True  -> ((init . init) d' ++ [last d'], (init . init) r' ++ [last r'])
+                        False -> (d',r')
 
 -- Find out seed date for date generation
 -- We need to work this out for adjustEOM because we don't pass round the seed date
