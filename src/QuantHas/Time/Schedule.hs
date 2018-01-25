@@ -231,7 +231,7 @@ genScheduleDates ::
 genScheduleDates ed td sch 
   | rule sch == Just Zero      = scheduleDatesZero ed td sch
   | rule sch == Just Backward  = scheduleDatesBackward ed td sch
-  | rule sch == Just Forward   = undefined
+  | rule sch == Just Forward   = scheduleDatesForward ed td sch
   | elem (fromJust . rule $ sch) [Twentieth,TwentiethIMM,OldCDS,CDS,CDS2015]
     = bool
         (Left $ "endofmonth convention incompatible with " ++ (show $ rule sch) ++ "date generation rule")
@@ -271,7 +271,6 @@ scheduleDatesBackward ed td sch
                   (convention sch)
                   (fromJust $ useEndOfMonth sch)
          t = fromJust $ tenor sch
-         tdc = getCalDate td
          ntl = nextToLastDate sch
          fd  = firstDate sch
          seedDate | (not . isNullDate) ntl = ntl
@@ -281,6 +280,69 @@ scheduleDatesBackward ed td sch
          prefixDates ds | (not . isNullDate) ntl = td : ds
                         | otherwise              = ds
          r = deriveRegular nullCalendar t d
+
+-- | generate schedule dates when date generation rule is Forward
+-- Because of the complexity of the QL code, we split the date generation into
+-- three parts - the init section, which dervies things like seed date etc., the
+-- main section - which corresponds to the date generation loop in the QL code, and
+-- the post section, which corresponds to the code in the 'forward' case section
+-- after the date generation loop.  This also helps us with the complex if-statements
+-- that use the rule value for things like CDS2015.
+scheduleDatesForward ::
+     Date                   -- ^ effective date
+  -> Date                   -- ^ termination date
+  -> Schedule
+  -> Either String Schedule
+scheduleDatesForward ed td s
+  = Right $ (datesForwardEnd td) . datesForwardMain $ datesForwardInit ed td s
+
+-- | derive starting values for seed date, exit date and dates list for Forward
+-- date generation rule
+datesForwardInit ::
+     Date
+  -> Date
+  -> Schedule
+  -> (Date,Date,Schedule)
+datesForwardInit ed td s
+  = (seed,exitd,s{ dates = d})
+  where fd = firstDate s
+        ntld = nextToLastDate s
+        isNullFd = isNullDate fd
+        isNullNTL = isNullDate ntld
+        seed | isNullFd  = ed
+             | otherwise = fd
+        exitd | isNullNTL = td
+              | otherwise = ntld
+        d | isNullFd   = [ed]
+          | ed == fd   = [ed]
+          | otherwise  = [ed,fd]
+
+-- | main dates generation
+-- Note we drop the first date from the dates list because the dates in the schedule will already
+-- contain the seed date
+datesForwardMain :: (Date,Date,Schedule) -> Schedule
+datesForwardMain (seed,exitd,sch)
+  = sch {dates = ds}
+  where ds = (prefixDates . fmap Date . takeWhile (< e) . drop 1) $
+              datesList
+                nullCalendar
+                (getCalDate seed)
+                (lenPeriod t)
+                (units t)
+                (convention sch)
+                (fromJust $ useEndOfMonth sch)
+        t = fromJust $ tenor sch
+        e = getCalDate exitd
+        -- append dates from the dates list to those we derived from init process
+        prefixDates ds = dates sch ++ ds
+
+datesForwardEnd :: Date -> Schedule -> Schedule
+datesForwardEnd td s = s { dates = d,regular = r}
+  where d | isNullDate ntl = ds ++ [td]
+          | otherwise      = ds ++ [ntl,td]
+        ds = dates s
+        ntl = nextToLastDate s
+        r = deriveRegular nullCalendar (fromJust $ tenor s) d
 
 -- | Create a list of dates for a schedule
 datesList ::
@@ -302,6 +364,8 @@ deriveRegular :: Calendar -> Period -> [Date] -> [Bool]
 deriveRegular c t ds
     = zipWith f ds (tail ds)
     where f d d' = addToDate (getCalDate d) t == (getCalDate d')
+
+-- === Adjustment functions === ---
 
 -- | apply adjustments to the dates in the generated schedule
 -- TO DO - add other adjustments
@@ -391,7 +455,7 @@ seedDate sch
       = undefined
   where r = rule sch
 
--- Misc. schedule functions
+-- === Misc. schedule functions === --
 
 -- | Length of dates list - equivalent to size() function in QL Schedule class
 schLength :: Schedule -> Int
@@ -417,6 +481,43 @@ nextDate = undefined
 -- TO DO
 prevDate :: Schedule -> Date -> Date
 prevDate = undefined
+
+-- | Find the date that falls on the nearest 20th before the given date
+-- E.g., for 31st January, it would be 20th January; for 3rd January 2017, it would be 20th Dec 2016.
+-- For IMM date generation, we need to find the 20th of the nearest IMM month.
+previousTwentieth :: Calendar -> DateGenerationRule -> CalDate -> CalDate
+previousTwentieth c r d
+  | r `elem` [CDS,OldCDS,CDS2015,TwentiethIMM]
+    = case isIMMMonth of
+        True  -> d'
+        False -> subtractFromDate d' (mkPeriodFromTime (m' `mod` 3) Months)
+  | otherwise = d'
+  where day = getday d
+        month = getmonth d
+        year = getyear d
+        newd = fromJust $ mkCalDate month 20 year
+        -- if 20th date of same month is after d, then make it the previous month
+        d'   = bool newd (subtractFromDate newd (mkPeriodFromTime 1 Months)) (newd > d)
+        m'   = getmonth d'
+        isIMMMonth = m' `elem` [3,6,9,12] -- is month of 20th date an IMM month?
+
+-- | Find the date that falls on the nearest 20th after the given date
+nextTwentieth :: Calendar -> DateGenerationRule -> CalDate -> CalDate
+nextTwentieth c r d
+  | r `elem` [CDS,OldCDS,CDS2015,TwentiethIMM]
+    = case isIMMMonth of
+        True  -> d'
+        False -> addToDate d' (mkPeriodFromTime (m' `mod` 3) Months)
+  | otherwise = d'
+  where day = getday d
+        month = getmonth d
+        year = getyear d
+        newd = fromJust $ mkCalDate month 20 year
+        -- if 20th date of same month is after d, then make it the previous month
+        d'   = bool newd (addToDate newd (mkPeriodFromTime 1 Months)) (newd < d)
+        m'   = getmonth d'
+        isIMMMonth = m' `elem` [3,6,9,12] -- is month of 20th date an IMM month?
+
 
 -- | is a date, as indicated by its positionin the schedule, regular?  We assume that
 -- the position argument starts at 1 (as per QL)

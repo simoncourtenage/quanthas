@@ -24,6 +24,8 @@ scheduleTestGroup = testGroup "Schedule Tests"
          , schedule_backwards_dates_1
          , schedule_backwards_dates_2
          , schedule_backwards_regular
+         , schedule_forwards_dates_1
+         , schedule_forwards_regular
     ]
 
 schedule_test1 = testCase "Schedule datesList test" $ assertEqual "" expected actual
@@ -103,7 +105,50 @@ schedule_backwards_regular
           ntl      = fromJust $ mkDate 08 20 2017
           tenor    = Just $ mkPeriodFromTime 1 Months
           
+schedule_forwards_dates_1
+    = testCase "Schedule Forward Dates Test 1" $ assertEqual "" expected actual
+    where actual = dates sched
+          expected = scheddates_forward_adjusted
+          sched    = fromRight $
+                        mkScheduleFromEffectiveDate
+                            Settings.defaultSettings
+                            begin
+                            end
+                            calendarUKLSE
+                            Following
+                            Nothing
+                            tenor
+                            (Just Forward)
+                            (Just False)
+                            NullDate
+                            ntl
+          begin    = fromJust $ mkDate 01 01 2017
+          end      = fromJust $ mkDate 09 01 2017
+          ntl      = fromJust $ mkDate 08 20 2017
+          tenor    = Just $ mkPeriodFromTime 1 Months
 
+schedule_forwards_regular
+    = testCase "Schedule Forwards Regular Test" $ assertEqual "" expected actual
+    where actual = regular sched
+          expected = regular_forwards_expected
+          sched    = fromRight $
+                        mkScheduleFromEffectiveDate
+                            Settings.defaultSettings
+                            begin
+                            end
+                            calendarUKLSE
+                            Following
+                            Nothing
+                            tenor
+                            (Just Forward)
+                            (Just False)
+                            NullDate
+                            ntl
+          begin    = fromJust $ mkDate 01 01 2017
+          end      = fromJust $ mkDate 09 01 2017
+          ntl      = fromJust $ mkDate 08 20 2017
+          tenor    = Just $ mkPeriodFromTime 1 Months
+      
 date1 = fromJust $ mkCalDate 01 01 2017
 datelist_test1
     =  fmap (fromJust . uncurry3 mkCalDate)
@@ -123,9 +168,18 @@ scheddates_adjusted
     =  fmap (fromJust . uncurry3 mkDate)
         [(1,3,2017),(1,20,2017),(2,20,2017),(3,20,2017),(4,20,2017),(5,22,2017),(6,20,2017),(7,20,2017),(8,21,2017),(9,1,2017)]
 
+scheddates_forward_adjusted
+    =  fmap (fromJust . uncurry3 mkDate)
+            [(1,3,2017),(2,1,2017),(3,1,2017),(4,3,2017),
+             (5,2,2017),(6,1,2017),(7,3,2017),
+             (8,1,2017),(8,21,2017),(9,1,2017)]
+    
+
 regular_expected
     = [False,True,True,True,True,True,True,True,False]
 
+regular_forwards_expected
+    = [True,True,True,True,True,True,True,False,False]    
 -- utils
 
 fromRight :: Either String b -> b

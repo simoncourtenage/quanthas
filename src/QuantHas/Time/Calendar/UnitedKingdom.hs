@@ -70,7 +70,7 @@ isEasterDate d = doy == em || doy == em - 3
 --   There was no late bank holiday in 2002 because of the Golden Jubilee bank holiday on June 3rd
 --   See https://www.timeanddate.com/holidays/uk/2002
 isMayBankHoliday :: DatePred
-isMayBankHoliday date@(CalDate d m y _)
+isMayBankHoliday date@(CalDate m d y _)
     = m == 5 && (d <= 7 || (d >= 25 && y /= 2002)) && getweekdayname date == Monday
 
 -- | Is the golden jubilee bank holiday (3rd June 2002) or the early spring bank holiday that followed
