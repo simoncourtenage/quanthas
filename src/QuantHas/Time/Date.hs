@@ -101,6 +101,9 @@ mkDate m d y = case mkCalDate m d y of
   Nothing -> Nothing
   Just c  -> Just $ Date c
 
+minimumDate :: Maybe Date
+minimumDate = mkDate 01 01 1901
+
 isValidDay :: Day -> Month -> Year -> Maybe Day
 isValidDay d m y | m > 0 && m < 13 && d > 0 && d <= ds = Just d
                  | otherwise       = Nothing

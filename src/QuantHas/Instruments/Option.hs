@@ -13,22 +13,25 @@
     FOR A PARTICULAR PURPOSE.  See the license for more details.
 -}
 
-module QuantHas.Instruments.Instrument ( Instrument(..) ) where
+module QuantHas.Instruments.Option where
 
-import QuantHas.Time.Date
+import QuantHas.Instruments.Instrument
+import QuantHas.Quotes.Quote
+import QuantHas.Quotes.SimpleQuote
 import QuantHas.Money
+import QuantHas.Payoff
+import QuantHas.Instruments.Payoffs
+import QuantHas.Exercise
+import QuantHas.Instruments.OptionType
 
--- Instrument defines an interface that all Instrument instances need to implement
-class Instrument a where
-    npv :: a -> Money
-    isExpired :: a -> Bool
-    isExpired _ = False
-    valuationDate :: a -> Maybe Date
-    valuationDate _ = Nothing
-    errorEstimate :: a -> Maybe Double
-    errorEstimate _ = Nothing
+data Option
+    = Option {
+          optionType :: OptionType
+        , optionPayoff :: Payoff
+        , optionExercise :: Exercise
+    }
+
+mkOption :: OptionType -> Payoff -> Exercise -> Option
+mkOption o p e = Option { optionType = o, optionPayoff = p, optionExercise = e }
 
 
-    
-	
-     

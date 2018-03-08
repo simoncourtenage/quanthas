@@ -1,5 +1,5 @@
 {-
-    Copyright (C) 2010, Simon Courtenage (courtenage@gmail.com)
+    Copyright (C) 2018, Simon Courtenage (courtenage@gmail.com)
     
     This file is part of QuantHas, an open-source Haskell implementation
     of the QuantLib library for quantitative finance.

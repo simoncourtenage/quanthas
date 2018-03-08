@@ -15,6 +15,7 @@ import Data.Maybe (fromJust)
 import Data.Either
 import Test.Tasty (testGroup)
 import Test.Tasty.HUnit
+import Test.Tasty.QuickCheck
 
 
 scheduleTestGroup = testGroup "Schedule Tests"

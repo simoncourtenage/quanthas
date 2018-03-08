@@ -13,22 +13,24 @@
     FOR A PARTICULAR PURPOSE.  See the license for more details.
 -}
 
-module QuantHas.Instruments.Instrument ( Instrument(..) ) where
+module QuantHas.Quotes.SimpleQuote
+    (
+          SimpleQuote
+        , mkSimpleQuote
+        , value
+        , isValid
+        , module QuantHas.Money
+    )
+    where
 
-import QuantHas.Time.Date
+import QuantHas.Quotes.Quote
 import QuantHas.Money
 
--- Instrument defines an interface that all Instrument instances need to implement
-class Instrument a where
-    npv :: a -> Money
-    isExpired :: a -> Bool
-    isExpired _ = False
-    valuationDate :: a -> Maybe Date
-    valuationDate _ = Nothing
-    errorEstimate :: a -> Maybe Double
-    errorEstimate _ = Nothing
+newtype SimpleQuote = SimpleQuote Money
 
+instance Quote SimpleQuote where
+    value (SimpleQuote d) = d
+    isValid (SimpleQuote _) = True
 
-    
-	
-     
+mkSimpleQuote :: Money -> SimpleQuote
+mkSimpleQuote d = SimpleQuote d 

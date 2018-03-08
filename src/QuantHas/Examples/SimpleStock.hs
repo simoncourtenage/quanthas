@@ -13,22 +13,16 @@
     FOR A PARTICULAR PURPOSE.  See the license for more details.
 -}
 
-module QuantHas.Instruments.Instrument ( Instrument(..) ) where
+module SimpleStock() where
 
-import QuantHas.Time.Date
-import QuantHas.Money
+import QuantHas.Quotes.SimpleQuote
+import QuantHas.Instruments.Stock
+import QuantHas.PricingEngines.PricingEngine
 
--- Instrument defines an interface that all Instrument instances need to implement
-class Instrument a where
-    npv :: a -> Money
-    isExpired :: a -> Bool
-    isExpired _ = False
-    valuationDate :: a -> Maybe Date
-    valuationDate _ = Nothing
-    errorEstimate :: a -> Maybe Double
-    errorEstimate _ = Nothing
-
-
+main :: IO ()
+main = do
+    let q = mkSimpleQuote (mkMoney "GBP" 3.2)
+    let s = mkStock (mkSymbol "BT.A") q
+    let v = price (idEngine) s
+    putStrLn $ show v
     
-	
-     

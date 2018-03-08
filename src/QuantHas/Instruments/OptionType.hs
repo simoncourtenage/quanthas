@@ -13,22 +13,6 @@
     FOR A PARTICULAR PURPOSE.  See the license for more details.
 -}
 
-module QuantHas.Instruments.Instrument ( Instrument(..) ) where
+module QuantHas.Instruments.OptionType (OptionType(..)) where
 
-import QuantHas.Time.Date
-import QuantHas.Money
-
--- Instrument defines an interface that all Instrument instances need to implement
-class Instrument a where
-    npv :: a -> Money
-    isExpired :: a -> Bool
-    isExpired _ = False
-    valuationDate :: a -> Maybe Date
-    valuationDate _ = Nothing
-    errorEstimate :: a -> Maybe Double
-    errorEstimate _ = Nothing
-
-
-    
-	
-     
+data OptionType = Call | Put deriving (Eq,Show)

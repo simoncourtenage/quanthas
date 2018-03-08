@@ -13,22 +13,30 @@
     FOR A PARTICULAR PURPOSE.  See the license for more details.
 -}
 
-module QuantHas.Instruments.Instrument ( Instrument(..) ) where
+module QuantHas.Payoff 
+    (
+        module QuantHas.Payoff
+    )
+    where
 
-import QuantHas.Time.Date
 import QuantHas.Money
 
--- Instrument defines an interface that all Instrument instances need to implement
-class Instrument a where
-    npv :: a -> Money
-    isExpired :: a -> Bool
-    isExpired _ = False
-    valuationDate :: a -> Maybe Date
-    valuationDate _ = Nothing
-    errorEstimate :: a -> Maybe Double
-    errorEstimate _ = Nothing
+type PayoffName = String
+type PayoffDescription = String
+
+data Payoff = Payoff {
+                  runPayoff :: Money -> Maybe Money
+                , description :: PayoffDescription
+                , name :: PayoffName
+              }
+
+mkPayoff :: (Money -> Maybe Money) -> PayoffName -> PayoffDescription -> Payoff
+mkPayoff f n d = Payoff { runPayoff = f, name = n, description = d }
+
+payoff :: Payoff -> Money -> Maybe Money
+payoff p m = runPayoff p $ m
 
 
-    
-	
-     
+
+
+

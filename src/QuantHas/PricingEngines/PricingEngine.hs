@@ -13,22 +13,21 @@
     FOR A PARTICULAR PURPOSE.  See the license for more details.
 -}
 
-module QuantHas.Instruments.Instrument ( Instrument(..) ) where
+module QuantHas.PricingEngines.PricingEngine
+    (
+        module QuantHas.PricingEngines.PricingEngine
+    ) where
 
-import QuantHas.Time.Date
 import QuantHas.Money
+import QuantHas.Instruments.Instrument
 
--- Instrument defines an interface that all Instrument instances need to implement
-class Instrument a where
-    npv :: a -> Money
-    isExpired :: a -> Bool
-    isExpired _ = False
-    valuationDate :: a -> Maybe Date
-    valuationDate _ = Nothing
-    errorEstimate :: a -> Maybe Double
-    errorEstimate _ = Nothing
+-- some draft ideas for pricing engines
+newtype PricingEngine a = PricingEngine { runEngine :: a -> Money }
+
+price :: Instrument a => PricingEngine a -> a -> Money
+price p i = (runEngine p) i
+
+idEngine :: Instrument a => PricingEngine a
+idEngine = PricingEngine $ npv
 
 
-    
-	
-     

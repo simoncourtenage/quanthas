@@ -13,22 +13,32 @@
     FOR A PARTICULAR PURPOSE.  See the license for more details.
 -}
 
-module QuantHas.Instruments.Instrument ( Instrument(..) ) where
+module QuantHas.Instruments.Stock
+    (
+          Stock
+        , mkSymbol
+        , mkStock
+        , module QuantHas.Instruments.Instrument
+    )
+    where
 
-import QuantHas.Time.Date
+import QuantHas.Instruments.Instrument
+import QuantHas.Quotes.Quote
+import QuantHas.Quotes.SimpleQuote
 import QuantHas.Money
 
--- Instrument defines an interface that all Instrument instances need to implement
-class Instrument a where
-    npv :: a -> Money
-    isExpired :: a -> Bool
-    isExpired _ = False
-    valuationDate :: a -> Maybe Date
-    valuationDate _ = Nothing
-    errorEstimate :: a -> Maybe Double
-    errorEstimate _ = Nothing
+data Symbol = Symbol String
+
+data Stock a = Stock Symbol a
+
+instance (Quote a) => Instrument (Stock a) where
+    npv (Stock _ a) = value a
+    isExpired _ = True
+
+mkSymbol :: String -> Symbol
+mkSymbol = Symbol
+
+mkStock :: Quote a => Symbol -> a -> Stock a
+mkStock s q = Stock s q
 
 
-    
-	
-     
